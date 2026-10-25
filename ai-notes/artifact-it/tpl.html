@@ -1,0 +1,90 @@
+<title>Convergenza OpenSWOS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: technical handbook. Sticky table of contents on the left, one reading column; condensed scoreboard-style headings. */
+:root{
+  --bg:#f4f5f7; --surface:#ffffff; --fg:#1b2129; --muted:#5a6573; --line:#d9dde3;
+  --accent:#1f4f8a; --accent-soft:#e3ebf6; --amber:#9a5b00; --amber-soft:#fbf0dc; --code-bg:#eef1f5;
+  --display:"Barlow Semi Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"Source Sans 3","Segoe UI",Helvetica,Arial,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11151b; --surface:#181d25; --fg:#e4e7ec; --muted:#9aa4b2; --line:#2a313c;
+  --accent:#8db6ea; --accent-soft:#1c2a3d; --amber:#f0b45c; --amber-soft:#2e2414; --code-bg:#1e242e; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11151b; --surface:#181d25; --fg:#e4e7ec; --muted:#9aa4b2; --line:#2a313c;
+  --accent:#8db6ea; --accent-soft:#1c2a3d; --amber:#f0b45c; --amber-soft:#2e2414; --code-bg:#1e242e; color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{background:var(--bg);color:var(--fg);font:17px/1.6 var(--body);margin:0}
+a{color:var(--accent)} a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:20px;display:grid;grid-template-columns:250px minmax(0,1fr);gap:48px}
+header.top{grid-column:1/-1;padding-block:40px 24px;border-bottom:1px solid var(--line)}
+.kicker{font:600 13px/1 var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--amber)}
+header.top h1{font:700 clamp(32px,5vw,50px)/1.05 var(--display);margin:10px 0 14px;text-wrap:balance}
+header.top p{max-width:68ch;color:var(--muted);margin:0 0 10px}
+.meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:14px;color:var(--muted);margin-top:14px}
+.meta code{font:13px var(--mono)}
+nav.toc{position:sticky;top:calc(env(safe-area-inset-top,0px) + 16px);align-self:start;max-height:calc(100vh - 32px);overflow:auto;padding-block:24px;font-size:14px}
+nav.toc details>summary{font:600 13px var(--display);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);cursor:pointer;list-style:none;margin-bottom:10px}
+nav.toc ol{list-style:none;margin:0;padding:0}
+nav.toc>details>ol>li{margin-bottom:14px}
+nav.toc a{text-decoration:none;color:var(--fg);display:block;padding:2px 0}
+nav.toc a:hover{color:var(--accent)}
+nav.toc a.p{font:600 16px var(--display);color:var(--accent);margin-bottom:4px}
+nav.toc li ol a{color:var(--muted);padding-left:10px;border-left:1px solid var(--line)}
+main{min-width:0;padding-block:16px 80px}
+.part{padding-top:28px;border-top:3px solid var(--fg);margin-top:40px}
+.part:first-child{margin-top:16px}
+.eyebrow{font:600 13px/1 var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--amber);margin:0}
+.part h1{font:700 clamp(26px,3.6vw,36px)/1.1 var(--display);margin:8px 0 18px;text-wrap:balance}
+h2{font:700 25px/1.2 var(--display);margin:44px 0 12px;text-wrap:balance;scroll-margin-top:16px}
+h3{font:600 19px/1.3 var(--display);margin:28px 0 8px;letter-spacing:.01em;scroll-margin-top:16px}
+p,li{max-width:72ch}
+ul,ol{padding-left:22px}
+li{margin:4px 0}
+strong{font-weight:700}
+code{font:0.86em var(--mono);background:var(--code-bg);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+.cw{overflow-x:auto;background:var(--code-bg);border:1px solid var(--line);border-radius:6px;margin:14px 0}
+.cw pre{margin:0;padding:14px 16px;font:13.5px/1.55 var(--mono)}
+.cw code{background:none;padding:0;font:inherit;overflow-wrap:normal}
+.tw{overflow-x:auto;margin:14px 0;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:15px;font-variant-numeric:tabular-nums}
+th,td{text-align:left;vertical-align:top;padding:8px 12px;border-bottom:1px solid var(--line)}
+th{font:600 13px var(--display);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--accent-soft)}
+tr:last-child td{border-bottom:0}
+td code{white-space:nowrap}
+.summary{display:block;background:var(--amber-soft);border-left:4px solid var(--amber);padding:14px 18px;margin:0 0 20px;border-radius:0 6px 6px 0}
+.summary p{margin:0}
+.summary .tag{display:block;font:600 12px var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--amber);margin-bottom:6px}
+figure.diagram{margin:18px 0;background:#ffffff;border:1px solid var(--line);border-radius:8px;padding:14px}
+figure.diagram img{display:block;max-width:100%;height:auto;margin:0 auto}
+figure.diagram details{margin-top:10px;font-size:14px}
+figure.diagram summary{cursor:pointer;color:#5a6573;font:600 12px var(--display);letter-spacing:.12em;text-transform:uppercase}
+figure.diagram .cw{background:#eef1f5;border-color:#d9dde3}
+figure.diagram .cw code{color:#1b2129}
+@media (max-width:860px){
+  .wrap{grid-template-columns:minmax(0,1fr);gap:0}
+  nav.toc{position:static;max-height:none;padding-block:16px;border-bottom:1px solid var(--line)}
+  body{font-size:16px}
+}
+</style>
+<div class="wrap">
+<header class="top">
+  <div class="kicker">SWOS 96/97 Mod × OpenSWOS</div>
+  <h1>Convergenza: un motore delle competizioni per OpenSWOS</h1>
+  <p>Documentazione per sviluppatori sulla possibile convergenza tra il Mod SWOS 96/97 e OpenSWOS: come funzionano oggi campionati e coppe, una proposta di motore deterministico guidato da specifiche, i moduli per aggiungere o togliere leghe e coppe con il catalogo completo delle regole del Mondo 2026-27, la strategia di test e le regole per lavorare con l'AI su un'architettura solida invece che con patch di binari.</p>
+  <p>Bozza da discutere: nessun codice è stato scritto e nulla è stato proposto upstream. I documenti originali, in inglese, sono nel fork.</p>
+  <div class="meta"><span>Repository: <a href="https://github.com/aminta/OpenSWOS/tree/convergence-docs/docs/convergence">aminta/OpenSWOS · convergence-docs</a></span><span>Base upstream <code>584367a</code></span><span>25 ottobre 2026</span></div>
+</header>
+<nav class="toc" aria-label="Indice"><details open><summary>Indice</summary><ol>{{NAV}}</ol></details></nav>
+<main>
+{{BODY}}
+</main>
+</div>
+<script>
+(function(){var d=document.querySelector('nav.toc details');var m=window.matchMedia('(max-width:860px)');function s(){if(m.matches)d.removeAttribute('open');else d.setAttribute('open','')}try{s();m.addEventListener('change',s)}catch(e){}})();
+</script>

@@ -2,8 +2,9 @@
 
 ## Done
 - Fork aminta/OpenSWOS cloned to ~/OpenSWOS, branch convergence-docs from upstream 584367a.
-- docs/convergence/: README, competitions-in-openswos.md (task 2), competition-engine-proposal.md
-  (task 3), ai-development-guidelines.md (task 4); rows added to docs/INDEX.md.
+- docs/convergence/: README, competitions-in-openswos.md, competition-engine-proposal.md,
+  rule-catalogue.md (modules/ports + every Mod 2026-27 rule + CONCACAF module), testing-strategy.md
+  (pyramid L0-L6, few E2E), ai-development-guidelines.md; Mermaid diagrams; INDEX.md row.
 - ai-notes/ (this folder) created on Davide's request: AI notes separate from developer docs.
 
 ## Decisions (proposed, not yet approved by Davide)
@@ -23,8 +24,8 @@
 ## Published
 - Pushed to aminta/OpenSWOS convergence-docs (Davide ok 2026-10-25). No upstream PR/contact.
 - Italian artifact of the developer docs: https://claude.ai/artifact/CUearZGHwKovnhV2c8XxC5
-  (built from scratchpad it/*.md translations + build_doc.py; repo docs stay English).
-  Rebuild after doc changes: translate the delta into the IT copy, republish same file path.
+  sources in ai-notes/artifact-it/ (IT md + build_doc.py + tpl.html + mermaid cfg); repo docs stay English.
+  Rebuild after doc changes: translate the delta into the IT copy, republish (v2 = 5 parts + PNG diagrams).
 
 ## Next step
 - Waiting for Davide's review of the content; next contact with Playaveli only on his ok.
