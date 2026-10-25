@@ -50,21 +50,32 @@ engine feature with its own tests.
 
 ## 3. Architecture
 
-```
-            +---------------------- OpenSWOS (game) ----------------------+
-            |  career / transfers / finances / menus / match engine       |
-            |        |  results (callback)        ^ tables, fixtures,      |
-            |        v                            |  zones, brackets       |
-            |  +------------------ libswoscomp (C99) ------------------+   |
-            |  |  spec loader + validator   |  season state machine    |   |
-            |  |  stage engines (rr, groups, knockout, split, ...)     |   |
-            |  |  tie-break evaluator       |  draw engine (seeded)    |   |
-            |  |  link resolver (qualif., promo/releg., places)        |   |
-            |  |  calendar builder          |  state (de)serialiser    |   |
-            |  +-------------------------------------------------------+   |
-            +--------------------------------------------------------------+
-                     ^ specs (JSON)                ^ golden tests (CI)
-              data packs (*.swospack)       tools: validate, simulate, diff
+```mermaid
+flowchart TB
+  subgraph GAME["OpenSWOS (the game)"]
+    CAREER["Career, transfers, finances"]
+    MATCH["Match engine<br/>(play or simulate)"]
+    UI["Menus and screens"]
+    SAVE["JSON save (.CAR)"]
+  end
+  subgraph ENGINE["libswoscomp (C99, no game dependencies)"]
+    LOAD["Spec loader + validator"]
+    STATE["Season state machine"]
+    STAGES["Stage engines<br/>round robin, groups, knockout,<br/>split, play-off, promedio"]
+    RULES["Tie-breakers · draws (seeded RNG)<br/>· calendar · links"]
+    SER["State serialiser"]
+  end
+  PACKS[("Data packs / modules<br/>JSON specs + clubs + names")]
+  TESTS["Validator, scenarios,<br/>golden worlds (stub results)"]
+  PACKS --> LOAD --> STATE
+  STATE --- STAGES
+  STAGES --- RULES
+  STATE -- "next match to play" --> CAREER
+  CAREER --> MATCH
+  MATCH -- "result" --> STATE
+  STATE -- "tables, fixtures, brackets, zones" --> UI
+  STATE <--> SER <--> SAVE
+  TESTS -. "same API, no game" .-> STATE
 ```
 
 Design rules (they follow from OpenSWOS's own rules in `.claude/CLAUDE.md`):
@@ -210,29 +221,36 @@ The module system (folders, manifests, ports) and the full list of rule primitiv
 ## 5. API (C99)
 
 ```c
-/* Load and validate (no game state touched). */
-SwcStatus swc_world_load(const char *json, size_t len, SwcWorld **out, SwcDiag *diag);
-SwcStatus swc_world_validate(const SwcWorld *w, SwcDiag *diag);      /* static checks */
+/* How to read this block: each line is a function the game can call.
+ * The word before the name is what it returns (SwcStatus = "ok" or an error code);
+ * inside the brackets are its inputs; a '*' means "a reference to" a piece of data;
+ * 'const' means the function only reads it. Text between slash-star and star-slash is a comment. */
 
-/* A season: created from a world + previous season (or none) + seed. */
+/* 1. Load and check a world (reads JSON text, touches no game state). */
+SwcStatus swc_world_load(const char *json, size_t len, SwcWorld **out, SwcDiag *diag);
+SwcStatus swc_world_validate(const SwcWorld *w, SwcDiag *diag);      /* static checks only */
+
+/* 2. Start a season from the world, the previous season (or none) and a seed number. */
 SwcStatus swc_season_begin(const SwcWorld *w, const SwcSeason *prev,
                            uint64_t seed, SwcSeason **out);
 
-/* The driver loop: the engine says what is next, the host answers. */
-SwcStatus swc_next_event(SwcSeason *s, SwcEvent *ev);   /* MATCH, DRAW_DONE, STAGE_END, SEASON_END */
+/* 3. The driver loop: the engine says what happens next, the game answers.
+ *    Events: MATCH (play this match), DRAW_DONE, STAGE_END, SEASON_END. */
+SwcStatus swc_next_event(SwcSeason *s, SwcEvent *ev);
 SwcStatus swc_submit_result(SwcSeason *s, uint32_t match_id, const SwcResult *r);
-       /* SwcResult: goals 90', goals after ET, penalties, cards (for fair play), forfeits */
+       /* SwcResult: goals after 90', goals after extra time, penalties, cards (fair play), forfeits */
 
-/* Queries for the UI (read-only, stable ids). */
+/* 4. Read-only questions for the screens; competitions and stages are named by their ids. */
 SwcStatus swc_table(const SwcSeason *s, const char *stage_id, int group, SwcTableView *out);
 SwcStatus swc_fixtures(const SwcSeason *s, const char *comp_id, SwcFixtureList *out);
 SwcStatus swc_bracket(const SwcSeason *s, const char *stage_id, SwcBracketView *out);
 SwcStatus swc_zones(const SwcSeason *s, const char *stage_id, SwcZoneList *out);
 
-/* Season end: resolves every link, returns the next season's entrants. */
+/* 5. Season end: resolves every link (promotions, places, cross-cup moves)
+ *    and returns who enters what next season. */
 SwcStatus swc_season_end(SwcSeason *s, SwcTransition *out);
 
-/* Persistence (§7). */
+/* 6. Save and load the season state (§7). */
 SwcStatus swc_season_save(const SwcSeason *s, SwcWriter *w);
 SwcStatus swc_season_load(const SwcWorld *w, SwcReader *r, SwcSeason **out);
 ```
@@ -240,6 +258,25 @@ SwcStatus swc_season_load(const SwcWorld *w, SwcReader *r, SwcSeason **out);
 The host's existing season loop becomes: ask `swc_next_event`, play or simulate the match it
 names, `swc_submit_result`, repeat. The player's match and the simulated ones go through the same
 path, so a tie-break bug cannot hide in "the other divisions".
+
+```mermaid
+sequenceDiagram
+  participant G as OpenSWOS (career)
+  participant E as Engine
+  G->>E: swc_season_begin(world, previous season, seed)
+  loop until SEASON_END
+    G->>E: swc_next_event()
+    E-->>G: MATCH id 812: Inter v Milan (Serie A, matchday 9)
+    alt the player's match
+      G->>G: play it on the pitch
+    else any other match
+      G->>G: simulate it
+    end
+    G->>E: swc_submit_result(812, 2-1)
+  end
+  G->>E: swc_season_end()
+  E-->>G: promotions, relegations, continental places, next entrants
+```
 
 ## 6. Determinism
 

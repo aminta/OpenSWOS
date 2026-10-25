@@ -317,6 +317,18 @@ two legs with away goals then penalties, single final at the finalist with the b
 }
 ```
 
+```mermaid
+flowchart LR
+  MEX["mex<br/>Liga MX, Liga de Expansión"] -- "best-points-champion<br/>annual#2-6" --> CCC
+  USA["usa<br/>MLS, US Open Cup"] -- "cup.champion, supporters-shield,<br/>us-open-cup:champion" --> CCC
+  CAN["can"] --> CCC
+  CRC["crc"] --> CCC
+  PAN["pan (optional)"] -. "if missing: next ranked<br/>association's best unplaced" .-> CCC
+  CCC["concacaf<br/>Champions Cup"] -- "champion" --> CWC["fifa-club-world-cup<br/>(if missing: drop)"]
+  LIB["conmebol.lib"] -- "q3.losers" --> SUD["conmebol.sud groups"]
+  LIB -- "groups#3" --> SUDPO["conmebol.sud play-off"]
+```
+
 What changes when modules come and go:
 
 - **Remove `pan`**: its port is in `optional`, so its place follows `if_missing` (the next ranked

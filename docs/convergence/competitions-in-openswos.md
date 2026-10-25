@@ -127,6 +127,19 @@ Amiga 68k assembly (comments cite `SWOS2.s` line numbers). The main files:
    - draws the European cups (`Career_DrawEuropeanCupTeamsAndCopyGrids`, `src/career_eurocups.c:612`)
      and stores promotion/relegation in the season info.
 
+```mermaid
+flowchart TD
+  A["Career_AdvanceToNextSeason_UpdateCompetitions<br/>career_season.c:1662"] --> B["Prepare European + Copa<br/>qualification lists"]
+  B --> C["Update European cup slots<br/>career_eurocups.c:465-521"]
+  C --> D["Player's country first, then every country<br/>in _careerCompetitionIdRemapTable"]
+  D --> E["Career_ProcessCompetitionForNextSeason :782<br/>league divisions, then cups"]
+  E --> F["European places (career_eurocups.c:274)<br/>+ Copa qualifier (career_copa.c)"]
+  F --> D
+  D --> G{"teams appended = 0x50 + Copa<br/>and lists = 16 / 32 / 32 ?"}
+  G -- no --> P["PanicHaltLoop 0x8998 / 0x8999"]
+  G -- yes --> H["Draw European cups :612<br/>store promotions / relegations"]
+```
+
 A league's divisions are processed in order (`processPrimaryCompetitionForNextSeason`,
 `src/career_season.c:1573`): the player's division interactively, the others auto-simulated
 (`Career_AutoAdvanceInternationalCompetitionFixtures`), each followed by
