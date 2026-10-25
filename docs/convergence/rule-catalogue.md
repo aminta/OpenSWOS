@@ -223,7 +223,7 @@ World 2026-27. Field names follow the proposal's schema.
 | `access_list` | per association: places by league rank, cup winner, `next`, stage titles | CONMEBOL, CONCACAF, AFC, CAF, OFC; UEFA 2026-27 matrix | `conti.c`/`.py`, `uefaq.c` |
 | `access.coefficients` | simulated association/club coefficients move places from season 2 | "from season 2: Champions League N ... by the simulated association coefficients" | `uefacoef.py` |
 | `access.cascade` | unused places move by a declared rule (holder already qualified, excess beyond top 9) | UEFA places by rank | `uefaq.c` |
-| `access.holders` | holders' slots (cup winner -> same cup, Europa League winner -> CL ...) | UCL holder + UEL winner | `uefaq.c` |
+| `access.holders` | holders' slots (cup winner -> same cup, Europa League winner -> CL ...); always resolved through §3.12, never applied directly | UCL holder + UEL winner | `uefaq.c` |
 | `access.if_missing` | place of an association/cup not in the world -> declared target | CONCACAF "outside" places; Leagues Cup / Central American Cup places to their countries' leagues | `concacaf.access.json` |
 | `qualifying_rounds` | champions / league paths, seeded by coefficient | UEFA Q1-Q3 + play-off, Libertadores Q1-Q3 | `uefaq.c`, `conti` |
 | `draw.pots` | pots by ranking, `same_assoc: no / allow_if_via`, holder in A1 | Libertadores groups; ACL | `conti` |
@@ -234,6 +234,56 @@ World 2026-27. Field names follow the proposal's schema.
 | `guest_clubs` | clubs outside the world's leagues that play only a continental cup (guest squads) | `*.guests.json` for every confederation | `conti`, guests data |
 | `season1_entrants` | the real entrants of the first edition | `entrants_season1` in every access file | `conti` |
 | `super_cup` | single match / two legs between two cup winners | UEFA Super Cup, Recopa | `conti`, 4.0 Supercup |
+
+### 3.12 Entitlements, precedence and guarantees
+
+A real bug report on the Mod's 4.0.1 shows why this needs its own primitive. A Milan career: season 2 the
+club wins Serie A *and* the Conference League; season 3 it plays the Europa League instead of the Champions
+League. The Conference winner's slot (to the Europa League) was applied after, and over, the league
+champion's slot. In imperative code the outcome depends on the order in which two pieces of code run; in
+the engine it must depend only on declared rules.
+
+**Entitlements, not assignments.** At season end the link resolver first collects, for every club, *all*
+the places it is entitled to (league position, cup win, title holder, coefficient place), each as an
+entitlement `{club, target competition, stage, source}`. Nothing is assigned yet.
+
+**One declared precedence.** Each confederation module declares the order of its competitions and stages,
+from best to worst:
+
+```json
+"precedence": [ "uefa.ucl:league-phase", "uefa.ucl:play-off", "uefa.ucl:q3", "uefa.ucl:q2", "uefa.ucl:q1",
+                "uefa.uel:league-phase", "uefa.uel:play-off", "uefa.uel:q3",
+                "uefa.uecl:league-phase", "uefa.uecl:play-off", "uefa.uecl:q3", "uefa.uecl:q2", "uefa.uecl:q1" ]
+```
+
+The resolver gives every club its **best** entitlement by this list. Every other entitlement of that club
+becomes a **vacated slot**, filled by the declared `cascade` rule of that slot (next club of the same
+league, or the access list's rebalancing, as UEFA's own access list says). The order in which modules,
+competitions or code run cannot change the result: the algorithm is "best entitlement wins, then
+cascade", applied to the whole set at once, repeated until stable (it always ends: every step moves a club
+up the precedence list or fills a slot).
+
+**Guarantees.** A module can state what must always be true, and the engine checks it at every season end:
+
+```json
+"guarantees": [
+  { "club": "ita.serie-a:champion", "plays": "uefa.ucl", "stage_at_least": "uefa.ucl:league-phase" },
+  { "club": "uefa.uecl:champion",   "plays_at_least": "uefa.uel:league-phase" }
+]
+```
+
+A guarantee is checked three times:
+
+1. by the **validator**, which proves on the declared precedence that no combination of entitlements can
+   break it (here: the Serie A champion's entitlement is `ucl:league-phase`, the top of the list, so no
+   other entitlement can push it lower);
+2. by **property tests** (testing strategy L2), which give random clubs random combinations of titles;
+3. at **runtime**: if a guarantee were ever false at a season end, the engine stops with an error that names
+   the club, the guarantee and the entitlements involved, instead of producing a wrong season.
+
+So the Milan case becomes a declared rule ("the Serie A champion always plays the Champions League league
+phase"), a line in the precedence list, and a scenario (testing strategy L3) that forces the double win.
+It can no longer depend on the order of two code paths.
 
 ### 3.10 Career and world rules
 

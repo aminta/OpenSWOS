@@ -81,6 +81,8 @@ that any failure is reproducible. Invariants that must always hold:
 - each promotion slot has a matching relegation slot; no club ends in two divisions or in none;
 - every knockout tie produces exactly one winner; byes + entrants = bracket size;
 - every constrained draw satisfies its constraints;
+- every club gets its **best** entitlement by the declared precedence, and every declared guarantee holds
+  (rule catalogue §3.12): random clubs win random combinations of league, cup and continental titles;
 - **determinism**: running the same input twice gives byte-identical output; adding an unrelated module
   does not change any other competition's draws (RNG substreams, proposal §6).
 
@@ -114,6 +116,20 @@ force:
 expect:
   - conmebol.lib.q3.tie1.winner: away_side
   - conmebol.sud.groups.entrants contains: conmebol.lib.q3.tie1.loser
+```
+
+```yaml
+# scenarios/uefa/league-champion-beats-uecl-winner.yaml
+# From a player's report on Mod 4.0.1: Milan won Serie A and the Conference League,
+# then played the Europa League. The league title must always mean Champions League.
+name: Serie A champion who also wins the Conference League plays the Champions League
+uses: [modules/uefa, modules/ita]
+force:
+  champion: { ita.serie-a: club:ita.milan, uefa.uecl: club:ita.milan }
+expect:
+  - next_season.uefa.ucl.league-phase contains: club:ita.milan
+  - next_season.uefa.uel.entrants not contains: club:ita.milan
+  - vacated: { "uefa.uel:league-phase (uecl winner)": filled_by_cascade }
 ```
 
 Rules for scenarios:
