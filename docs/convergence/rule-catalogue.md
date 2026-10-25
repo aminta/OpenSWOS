@@ -174,7 +174,7 @@ World 2026-27. Field names follow the proposal's schema.
 
 | Primitive | JSON | Real case | Mod source |
 |---|---|---|---|
-| `decider` | ordered list: `aggregate`, `away_goals`, `extra_time`, `penalties`, `better_placed`, `replay` | "two legs (aggregate, then penalties, no extra time)", "extra time, then the better placed" | `gplay.c` (CONVENTIONS 10) |
+| `decider` | ordered list: `aggregate`, `away_goals`, `extra_time`, `penalties`, `better_placed`, `replay`, `draw_lots`, `golden_goal` | "two legs (aggregate, then penalties, no extra time)", "extra time, then the better placed" | `gplay.c` (CONVENTIONS 10) |
 | `decider.one_per_round` | one decider per round, chosen from the list above; never invented per competition | CONVENTIONS 10 | — |
 | `home.better_placed` | single match at the better-placed club; two legs: 2nd leg at the better placed | Serie C play-outs, LPF final phases | `gplay.c` |
 | `home.real_schedule` | home order as in the real schedule (season 1), then a declared rule | EFL play-offs round 1 | packs |
@@ -235,6 +235,23 @@ World 2026-27. Field names follow the proposal's schema.
 | `season1_entrants` | the real entrants of the first edition | `entrants_season1` in every access file | `conti` |
 | `super_cup` | single match / two legs between two cup winners | UEFA Super Cup, Recopa | `conti`, 4.0 Supercup |
 
+### 3.10 Career and world rules
+
+| Primitive | JSON | Real case | Mod source |
+|---|---|---|---|
+| `visibility.real_only` | a career club plays (and sees in its calendar) only what its real club would; others are simulated for winners and holders | Serie D club: its group + Coppa Italia Serie D (CONVENTIONS 11) | Mod world logic |
+| `simulate.world_wide` | every competition the player does not play is simulated each season, so every cup has winner, runner-up, holders, honours | all continental cups | `conti.c`, `simdraw.py` |
+| `honours.path` | each club's round reached, for honours and season review | all cups | `conti` |
+| `season_naming` | edition named by year (2026-27 plays the 2027 editions) | continental cups | `conti` |
+
+### 3.11 Presentation (generated from the specs)
+
+| Primitive | JSON | Real case | Mod source |
+|---|---|---|---|
+| `names.lang` | names per language with `short` and a width limit | 35-byte titles, 70-px calendar labels, 4 languages | `titlelegs.py`, `complist.py` (CONVENTIONS) |
+| `explain` | FORMAT page and rule notes generated from the spec, per language | FORMAT pages, "Every country, every competition" | `fmtpage.py`, `fmtprose.py`, `complist.py` |
+| `zones` | colours + legend from outcome tags | all tables | `zones.py` |
+
 ### 3.12 Entitlements, precedence and guarantees
 
 A real bug report on the Mod's 4.0.1 shows why this needs its own primitive. A Milan career: season 2 the
@@ -285,22 +302,37 @@ So the Milan case becomes a declared rule ("the Serie A champion always plays th
 phase"), a line in the precedence list, and a scenario (testing strategy L3) that forces the double win.
 It can no longer depend on the order of two code paths.
 
-### 3.10 Career and world rules
+### 3.13 Added after reviewing the Mod's notes and sessions
+
+A pass over the Mod's notes (`release/notes-world-2026-27.md` "Rebuilt exactly", `notes/domestic-schedule.md`,
+`notes/sa401-exact-designs.md`, `notes/world-2025-26-split.md`, `internal/world2526/formats2627.md`, the
+sessions' handoff files) and over Davide's messages in 53 SWOS sessions added these primitives.
 
 | Primitive | JSON | Real case | Mod source |
 |---|---|---|---|
-| `visibility.real_only` | a career club plays (and sees in its calendar) only what its real club would; others are simulated for winners and holders | Serie D club: its group + Coppa Italia Serie D (CONVENTIONS 11) | Mod world logic |
-| `simulate.world_wide` | every competition the player does not play is simulated each season, so every cup has winner, runner-up, holders, honours | all continental cups | `conti.c`, `simdraw.py` |
-| `honours.path` | each club's round reached, for honours and season review | all cups | `conti` |
-| `season_naming` | edition named by year (2026-27 plays the 2027 editions) | continental cups | `conti` |
-
-### 3.11 Presentation (generated from the specs)
-
-| Primitive | JSON | Real case | Mod source |
-|---|---|---|---|
-| `names.lang` | names per language with `short` and a width limit | 35-byte titles, 70-px calendar labels, 4 languages | `titlelegs.py`, `complist.py` (CONVENTIONS) |
-| `explain` | FORMAT page and rule notes generated from the spec, per language | FORMAT pages, "Every country, every competition" | `fmtpage.py`, `fmtprose.py`, `complist.py` |
-| `zones` | colours + legend from outcome tags | all tables | `zones.py` |
+| `club.second_team` | `"second_team_of": "club:ita.juventus"` + per-country rules: `max_level`, `never_into_first_team_level`, `place_passes_to_next`, `forced_down_with_first_team`, `excluded_from: [national_cup]`, `playoffs: allowed/denied` | Juventus Next Gen, Atalanta U23, Inter U23 (up to Serie B, Serie C play-offs allowed); Real Sociedad B; Stuttgart II (never to 2. Bundesliga); Jong PSV; Benfica B; NZ reserves | `formats2627.md` "Second teams" |
+| `division.refill` | when a club is forced out (second team, licence), the division keeps its size from a declared pool | Serie C refilled from the Serie D reserve | `ripool.py` |
+| `outcome.direct_if_gap` | a play-off place becomes direct if the gap to the next place is > N points | Serie B: 3rd promoted directly if more than 14 points ahead of the 4th; 17th relegated directly if the 16th is more than 4 points ahead | Serie B rules (4.0) |
+| `split.points.tiebreak_before_rounding` | after halving, "points before rounding" is the first tie-breaker | Romania, Greece 5-8 | `split.py` |
+| `playoff.title_seed` | a title play-off whose bracket depends on who won what: tournament winners A, C and the aggregate top 2; A = C -> no play-off; direct final; semi-finals | Peru Liga 1 national final | `sa401-exact-designs.md` §1 |
+| `groups.draw_with_heads` | fixed group heads (1st, 2nd), the rest drawn into the groups without pots; heads at home on the last matchday | Colombia's cuadrangulares | `sa401-exact-designs.md` §2 |
+| `constraint.shared_stadium` | clubs sharing a city or stadium never at home on the same day | Colombia (Dimayor) | `sa401-exact-designs.md` §2 |
+| `schedule.mirror_infer` | missing second-tournament matchdays inferred as the first tournament's mirror when every published day matches | Peru, Colombia, Uruguay Clausura | `sa_exact.fixtures_full` |
+| `series.best_of` | a tie decided over a best-of-N series | MLS Cup play-offs round one (best of three) | `domestic-schedule.md` |
+| `second_competition` | a second competition in the same season for the same clubs (regional leagues, then a national championship phase) | New Zealand: Northern/Central/Southern leagues, then the National League Championship and grand final | `domestic-schedule.md` |
+| `stage.starts_after` | a stage may start only after another stage (its knockout included) is over | Argentina: the Clausura began while the Apertura play-offs were still running (Davide's report) | `domestic-schedule.md` dates |
+| `titles` | every title a competition decides beyond its table (stage champions, play-off winner, trophy of champions, regular season) is an output, listed on a WINNERS view and in honours | Apertura/Clausura champions, Trofeo de Campeones, MLS Cup vs Supporters' Shield, Malta when one club wins both phases | WINNERS page (4.0) |
+| `decider.draw_lots` / `golden_goal` / `silver_goal` | historic deciders: lots instead of penalties, golden or silver goal in extra time | World Cup 1934, Mitropa (lots); golden goal kept for later (Davide) | `historic.py`, `mitropa34.py` |
+| `decider.required` | every knockout round must declare its decider; there is no default | Copa do Brasil final went to extra time although the real rule is straight to penalties (default inherited from 3.2) | 4.0.1 known issue |
+| `calendar.no_phantom_replays` | replay dates exist only if the round's decider contains `replay` | play-offs that are single matches showed replay dates (Davide 21/10) | `gplay.c` fix |
+| `cup.entrants_from_current_divisions` | a cup's entrants are recomputed every season from the divisions as they are, with the real byes per division | Mestre promoted to Serie C played no Coppa Italia Serie C; Siracusa's Coppa Italia never started after promotion | 4.0.1 `cupsfollow` |
+| `no_cup` | a country module may declare that no national cup is played | Mexico, Honduras, Guatemala, Panama 2026-27 | data |
+| `edition_format` | a competition's format can change by season (`valid_from`, `valid_to`), so a historic world plays each year's real format | Champions League format changed in 1997-98; Copa Libertadores 1996 had 5 groups | Davide's requests; `lib97.py` |
+| `holder.policy` | era-specific holder rules: holder plays in addition, holder replaces the country's lowest place, holder's place taken from another association | 1984-85: the holder plays in addition; 1996-97 Libertadores holder in its country's group in place of the 2nd | `careerworld.py`, `sacups.py` |
+| `approximation.declared` | when the engine or the data cannot be exact, the spec says so in a field, and the text goes into the release notes and the FORMAT page | "Declared: the Paulista's round order is rebuilt"; CONCACAF away goals then penalties | CONVENTIONS 9, 12 |
+| `world.min_structure` | a world may require at least the original game's structure (no fewer leagues or divisions than SWOS 96/97) | England's four divisions in World 2026-27 | memory "never fewer divisions" |
+| `names.press_style` | club and competition names as the press writes them, without legal suffixes or sponsors | "Parma", not "Parma Calcio"; "COPPA ITALIA" without sponsor | Davide 19/10 |
+| `display.stage_in_title` | tables and results show the competition with its stage ("LIGA P. - APERTURA") and explain resets | Argentina | Davide 19/10 |
 
 ## 4. Example: the CONCACAF module
 

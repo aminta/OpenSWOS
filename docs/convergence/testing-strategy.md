@@ -184,6 +184,11 @@ the pattern the project already uses for `--custom-team-selftest` and `--dos-sou
 
 ## 4. Tooling and CI
 
+- **Hermetic tests**: each test builds its own world from files; no cache or state is shared between tests
+  (the Mod's serial harness runs once produced false regressions through shared module caches).
+- **Shipped data**: golden worlds and L5 run on the data packs that are actually released, never only on test
+  fixtures (the Mod's CONVENTIONS 17a: a crash existed only in release builds).
+
 - `swc-test` runs L0-L4 (C unit tests through a small test runner, scenarios and golden worlds through
   `swc-sim`); `make test` in OpenSWOS adds L5.
 - CI matrix: SDL x86_64 and arm64 for every commit; the Amiga build for unit tests and L5 nightly (the
