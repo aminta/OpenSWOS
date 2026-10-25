@@ -72,6 +72,24 @@ Since the refactor documented in `docs/COMPETITION_DYNAMIC_REFACTOR.md` (status:
 appended to the runtime tables). Copa Libertadores (`_copaLibertadores`, compId 128) was the proof;
 the Amiga build gets it baked (`src/competition_data_copa_baked.c`).
 
+### 2.3 Teams and saves are JSON too
+
+- **Teams**: `bin/data_json/teams/*.json` (72 files of `"type": "team"`), built by the data setup
+  from the player's own copy (git-ignored: original data is not in the repo). The shape is the
+  **same as in the `.CAR` save** (`{ "team": {...}, "players": [16] }`, snake_case keys, skill
+  bytes still packed), so saves and team files share one C loader (`docs/DATA_JSON.md` §4).
+- **Ids**: every team and player has a `uuid` and every team a `checksum` of its positions,
+  skills and values (`docs/TEAM_IDS.md`, `scripts/assign_team_uuids.py`). The rule is "an id names
+  fixed data": a team whose players or skills change is a **new team with a new id**; renames and
+  kits do not change it. Custom teams (`CUSTOMn.TEAM`) store only a base team's uuid + checksum
+  and the cosmetic changes; the matchmaking server checks both teams by id.
+- **Saves**: `.CAR`/`.SEA`/`.PRE`/`.DIY` are JSON only (schema 3), named fields, no addresses
+  (§9).
+
+For convergence this matters twice: a data pack can ship clubs in a format the game already
+reads, and the id rule means a competition spec must not name *squads* by uuid (they change with
+every transfer) but a stable *club* identity, with squads as versioned data (proposal §4.1).
+
 ### 2.2 Code (where the *rules* live)
 
 Everything that decides *how* a season unfolds is C, translated function by function from the

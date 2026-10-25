@@ -88,8 +88,11 @@ the engine reads JSON only. Examples below are in YAML for readability.
 
 - Every object has a stable string id, namespaced: `ita.serie-c`, `ita.serie-c.girone-a`,
   `uefa.ucl.league-phase`. The engine maps ids to dense integers at load; saves store the strings.
-- Clubs are referenced by the team database's `uuid` (OpenSWOS already has one per team,
-  `docs/TEAM_IDS.md`), never by file/ordinal.
+- Clubs are referenced by a stable **club id** (`club:ita.inter`), never by file/ordinal. OpenSWOS's
+  team `uuid` names one *fixed squad* (`docs/TEAM_IDS.md`: changed players or skills = new uuid),
+  so it identifies a squad version, not a club across seasons. A pack maps club id -> squad uuid
+  per season; team data itself uses the existing team JSON format (`docs/DATA_JSON.md` §4), so the
+  game's loader reads pack squads unchanged.
 
 ### 4.2 Competition
 
