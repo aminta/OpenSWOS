@@ -88,6 +88,7 @@ docs drift: search by function name.
 |---|---|---|---|
 | [COMPETITION_DYNAMIC_REFACTOR.md](COMPETITION_DYNAMIC_REFACTOR.md) | Making competitions id-based and data-addable; how Copa Libertadores was built on it. | historical | adding a data-only competition, `Comp_ById`, `_careerContests` |
 | [COPA_LIBERTADORES.md](COPA_LIBERTADORES.md) | The original design of the Copa Libertadores (format, 1996 field, draw, qualification) — built differently in places. | historical | changing Copa rules or CONMEBOL qualification |
+| [convergence/README.md](convergence/README.md) | Possible convergence with the SWOS 96/97 Mod: competitions today (OpenSWOS / DOS / Mod), a deterministic competition-engine proposal, AI development guidelines. | plan | discussing a declarative competition engine or Mod data on OpenSWOS |
 | [FEATURES.md](FEATURES.md) | Sketches of three enhancements: Copa (done), career length (done, `num_seasons`), easy data add/remove (partly). | historical / plan | extending competitions, career length, data-driven content |
 | [COMPETITION_SLOT_ALIAS_UNTANGLE.md](COMPETITION_SLOT_ALIAS_UNTANGLE.md) | Retiring the 46 comp-slot `.equ` aliases and the careerFileBuffer overlay. | historical | the 5 career competition slot buffers or their save descriptors |
 | [SLOT_ALIAS_S6_DISCOVERY.md](SLOT_ALIAS_S6_DISCOVERY.md) | Classification of every slot-0 alias reference before the S6 migration. | historical | archaeology on slot 0's legacy names |
