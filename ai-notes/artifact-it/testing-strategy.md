@@ -60,6 +60,7 @@ Specifiche casuali ma valide (generate dentro lo schema) e risultati casuali, su
 - ogni posto di promozione ha un posto di retrocessione corrispondente; nessun club finisce in due divisioni o in nessuna;
 - ogni turno a eliminazione produce esattamente una vincente; bye + partecipanti = dimensione del tabellone;
 - ogni sorteggio con vincoli li rispetta;
+- ogni club riceve il suo diritto **migliore** secondo la precedenza dichiarata, e ogni garanzia dichiarata vale (catalogo delle regole §3.12): club casuali vincono combinazioni casuali di campionato, coppa e titoli continentali;
 - **determinismo**: lo stesso ingresso fatto girare due volte dà un'uscita identica byte per byte; aggiungere un modulo estraneo non cambia i sorteggi di nessun'altra competizione (flussi separati del generatore, proposta §6).
 
 Un caso casuale che fallisce viene ridotto a una specifica minima e salvato come scenario di regressione (L3).
@@ -89,6 +90,20 @@ force:
 expect:
   - conmebol.lib.q3.tie1.winner: away_side
   - conmebol.sud.groups.entrants contains: conmebol.lib.q3.tie1.loser
+```
+
+```yaml
+# scenarios/uefa/league-champion-beats-uecl-winner.yaml
+# Dalla segnalazione di un giocatore sulla 4.0.1 del Mod: il Milan ha vinto Serie A e Conference
+# League e poi ha giocato l'Europa League. Lo scudetto deve valere sempre la Champions League.
+name: la campionessa di Serie A che vince anche la Conference League gioca la Champions League
+uses: [modules/uefa, modules/ita]
+force:
+  champion: { ita.serie-a: club:ita.milan, uefa.uecl: club:ita.milan }
+expect:
+  - next_season.uefa.ucl.league-phase contains: club:ita.milan     # va in Champions
+  - next_season.uefa.uel.entrants not contains: club:ita.milan     # non in Europa League
+  - vacated: { "uefa.uel:league-phase (uecl winner)": filled_by_cascade }   # il posto liberato scala
 ```
 
 Regole per gli scenari:

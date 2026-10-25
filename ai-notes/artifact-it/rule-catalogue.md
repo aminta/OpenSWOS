@@ -201,7 +201,7 @@ Ogni riga è una **primitiva**: una regola con nome, campi JSON, un'implementazi
 | `access_list` | per federazione: posti per posizione, vincitrice della coppa, `next`, titoli di fase | CONMEBOL, CONCACAF, AFC, CAF, OFC; matrice UEFA 2026-27 | `conti.c`/`.py`, `uefaq.c` |
 | `access.coefficients` | coefficienti simulati di federazione e club spostano i posti dalla seconda stagione | "dalla stagione 2: Champions League N ... per coefficienti simulati" | `uefacoef.py` |
 | `access.cascade` | i posti non usati scalano secondo una regola dichiarata (detentore già qualificato, eccedenze oltre le prime 9) | posti UEFA per posizione | `uefaq.c` |
-| `access.holders` | posti dei detentori (vincitrice della coppa -> stessa coppa, vincitrice dell'Europa League -> CL ...) | detentore UCL + vincitrice UEL | `uefaq.c` |
+| `access.holders` | posti dei detentori (vincitrice della coppa -> stessa coppa, vincitrice dell'Europa League -> CL ...); sempre risolti con il §3.12, mai applicati direttamente | detentore UCL + vincitrice UEL | `uefaq.c` |
 | `access.if_missing` | posto di una federazione/coppa che non è nel mondo -> destinazione dichiarata | posti "outside" CONCACAF; posti di Leagues Cup / coppa centroamericana ai campionati dei loro paesi | `concacaf.access.json` |
 | `qualifying_rounds` | percorso campioni / piazzate, teste di serie per coefficiente | preliminari UEFA Q1-Q3 + spareggio, preliminari Libertadores Q1-Q3 | `uefaq.c`, `conti` |
 | `draw.pots` | fasce per ranking, `same_assoc: no / allow_if_via`, detentore in A1 | gironi Libertadores; ACL | `conti` |
@@ -212,6 +212,39 @@ Ogni riga è una **primitiva**: una regola con nome, campi JSON, un'implementazi
 | `guest_clubs` | club fuori dai campionati del mondo che giocano solo una coppa continentale (rose ospiti) | `*.guests.json` per ogni confederazione | `conti`, dati guests |
 | `season1_entrants` | i partecipanti veri della prima edizione | `entrants_season1` in ogni file di accesso | `conti` |
 | `super_cup` | gara secca / andata e ritorno tra due vincitrici di coppa | Supercoppa UEFA, Recopa | `conti`, Supercoppa 4.0 |
+
+### 3.12 Diritti di qualificazione, precedenza e garanzie
+
+Una segnalazione vera sulla 4.0.1 del Mod mostra perché serve una primitiva apposta. Carriera con il Milan: nella stagione 2 il club vince la Serie A *e* la Conference League; nella stagione 3 gioca l'Europa League invece della Champions League. Il posto della vincitrice della Conference (verso l'Europa League) è stato applicato dopo quello della campionessa d'Italia, e ci è finito sopra. Nel codice imperativo il risultato dipende dall'ordine in cui girano due pezzi di codice; nel motore deve dipendere solo dalle regole dichiarate.
+
+**Diritti, non assegnazioni.** A fine stagione il risolutore dei link raccoglie prima, per ogni club, *tutti* i posti a cui ha diritto (posizione in campionato, coppa vinta, detentore, posto da coefficiente), ognuno come un diritto `{club, competizione di destinazione, fase, origine}`. Ancora non assegna niente.
+
+**Un'unica precedenza dichiarata.** Ogni modulo di confederazione dichiara l'ordine delle sue competizioni e fasi, dalla migliore alla peggiore:
+
+```json
+"precedence": [ "uefa.ucl:league-phase", "uefa.ucl:play-off", "uefa.ucl:q3", "uefa.ucl:q2", "uefa.ucl:q1",
+                "uefa.uel:league-phase", "uefa.uel:play-off", "uefa.uel:q3",
+                "uefa.uecl:league-phase", "uefa.uecl:play-off", "uefa.uecl:q3", "uefa.uecl:q2", "uefa.uecl:q1" ]
+```
+
+Il risolutore dà a ogni club il suo diritto **migliore** secondo questa lista. Ogni altro diritto di quel club diventa un **posto liberato**, riempito dalla regola `cascade` dichiarata per quel posto (club successivo dello stesso campionato, o il ribilanciamento dell'access list, come prevede la stessa access list UEFA). L'ordine in cui girano moduli, competizioni o codice non può cambiare il risultato: l'algoritmo è "vince il diritto migliore, poi si scala", applicato a tutto l'insieme insieme, ripetuto finché non cambia più niente (finisce sempre: ogni passo sposta un club più in alto nella lista o riempie un posto).
+
+**Garanzie.** Un modulo può dichiarare cosa deve essere sempre vero, e il motore lo controlla a ogni fine stagione:
+
+```json
+"guarantees": [
+  { "club": "ita.serie-a:champion", "plays": "uefa.ucl", "stage_at_least": "uefa.ucl:league-phase" },
+  { "club": "uefa.uecl:champion",   "plays_at_least": "uefa.uel:league-phase" }
+]
+```
+
+Una garanzia si controlla tre volte:
+
+1. dal **validatore**, che dimostra sulla precedenza dichiarata che nessuna combinazione di diritti può violarla (qui: il diritto della campionessa di Serie A è `ucl:league-phase`, il primo della lista, quindi nessun altro diritto può spingerla più in basso);
+2. dai **test di proprietà** (strategia di test L2), che danno a club casuali combinazioni casuali di titoli;
+3. **a runtime**: se a un fine stagione una garanzia risultasse falsa, il motore si ferma con un errore che nomina il club, la garanzia e i diritti coinvolti, invece di produrre una stagione sbagliata.
+
+Così il caso del Milan diventa una regola dichiarata ("la campionessa di Serie A gioca sempre la league phase della Champions League"), una riga nella lista di precedenza e uno scenario (strategia di test L3) che forza la doppia vittoria. Non può più dipendere dall'ordine di due percorsi di codice.
 
 ### 3.10 Regole di carriera e di mondo
 
