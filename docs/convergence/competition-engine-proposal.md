@@ -204,6 +204,9 @@ Real dates are first-class; the engine maps them to the game's week grid. `fixed
 (the real schedule) are supported for season 1; later seasons use the generator (circle method,
 correct for odd sizes, at most N consecutive home/away games — the Mod's `oddtables.py` rule set).
 
+The module system (folders, manifests, ports) and the full list of rule primitives are in
+`rule-catalogue.md`.
+
 ## 5. API (C99)
 
 ```c
