@@ -20,6 +20,12 @@
 - OpenSWOS side (doc 1 §13): golden test welcome? engine beside faithful path? odd tables fix?
   widen compId? save migrations?
 
+## Published
+- Pushed to aminta/OpenSWOS convergence-docs (Davide ok 2026-10-25). No upstream PR/contact.
+- Italian artifact of the developer docs: https://claude.ai/artifact/CUearZGHwKovnhV2c8XxC5
+  (built from scratchpad it/*.md translations + build_doc.py; repo docs stay English).
+  Rebuild after doc changes: translate the delta into the IT copy, republish same file path.
+
 ## Next step
-- Waiting for Davide's review and ok to push the branch to his fork (no upstream contact).
+- Waiting for Davide's review of the content; next contact with Playaveli only on his ok.
 - If approved later: draft schema/competition.schema.json.
