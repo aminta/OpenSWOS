@@ -152,7 +152,7 @@ Ogni riga è una **primitiva**: una regola con nome, campi JSON, un'implementazi
 
 | Primitiva | JSON | Caso reale | Fonte nel Mod |
 |---|---|---|---|
-| `decider` | lista ordinata: `aggregate`, `away_goals`, `extra_time`, `penalties`, `better_placed`, `replay` | "andata e ritorno (somma dei gol, poi rigori, senza supplementari)", "supplementari, poi la meglio piazzata" | `gplay.c` (CONVENTIONS 10) |
+| `decider` | lista ordinata: `aggregate`, `away_goals`, `extra_time`, `penalties`, `better_placed`, `replay`, `draw_lots`, `golden_goal` | "andata e ritorno (somma dei gol, poi rigori, senza supplementari)", "supplementari, poi la meglio piazzata" | `gplay.c` (CONVENTIONS 10) |
 | `decider.one_per_round` | un modo di decidere per turno, scelto dalla lista; mai inventato per una competizione | CONVENTIONS 10 | — |
 | `home.better_placed` | gara unica in casa della meglio piazzata; a due gare: ritorno in casa della meglio piazzata | play-out Serie C, fasi finali LPF | `gplay.c` |
 | `home.real_schedule` | ordine casa/fuori come nel calendario vero (prima stagione), poi una regola dichiarata | primo turno dei play-off EFL | pack |
@@ -213,6 +213,23 @@ Ogni riga è una **primitiva**: una regola con nome, campi JSON, un'implementazi
 | `season1_entrants` | i partecipanti veri della prima edizione | `entrants_season1` in ogni file di accesso | `conti` |
 | `super_cup` | gara secca / andata e ritorno tra due vincitrici di coppa | Supercoppa UEFA, Recopa | `conti`, Supercoppa 4.0 |
 
+### 3.10 Regole di carriera e di mondo
+
+| Primitiva | JSON | Caso reale | Fonte nel Mod |
+|---|---|---|---|
+| `visibility.real_only` | un club in carriera gioca (e vede nel calendario) solo ciò che giocherebbe il club vero; le altre competizioni si simulano per vincitori e detentori | club di Serie D: il suo girone + Coppa Italia Serie D (CONVENTIONS 11) | logica di mondo del Mod |
+| `simulate.world_wide` | ogni competizione non giocata dal giocatore si simula ogni stagione, così ogni coppa ha vincitrice, finalista, detentori, albo d'oro | tutte le coppe continentali | `conti.c`, `simdraw.py` |
+| `honours.path` | il turno raggiunto da ogni club, per albo d'oro e resoconto di stagione | tutte le coppe | `conti` |
+| `season_naming` | edizione chiamata con l'anno (la 2026-27 gioca le edizioni 2027) | coppe continentali | `conti` |
+
+### 3.11 Presentazione (generata dalle specifiche)
+
+| Primitiva | JSON | Caso reale | Fonte nel Mod |
+|---|---|---|---|
+| `names.lang` | nomi per lingua con `short` e limite di larghezza | titoli di 35 byte, etichette di calendario di 70 px, 4 lingue | `titlelegs.py`, `complist.py` (CONVENTIONS) |
+| `explain` | pagina FORMAT e note delle regole generate dalla specifica, per lingua | pagine FORMAT, "Ogni nazione, ogni competizione" | `fmtpage.py`, `fmtprose.py`, `complist.py` |
+| `zones` | colori + legenda dalle etichette degli esiti | tutte le classifiche | `zones.py` |
+
 ### 3.12 Diritti di qualificazione, precedenza e garanzie
 
 Una segnalazione vera sulla 4.0.1 del Mod mostra perché serve una primitiva apposta. Carriera con il Milan: nella stagione 2 il club vince la Serie A *e* la Conference League; nella stagione 3 gioca l'Europa League invece della Champions League. Il posto della vincitrice della Conference (verso l'Europa League) è stato applicato dopo quello della campionessa d'Italia, e ci è finito sopra. Nel codice imperativo il risultato dipende dall'ordine in cui girano due pezzi di codice; nel motore deve dipendere solo dalle regole dichiarate.
@@ -246,22 +263,35 @@ Una garanzia si controlla tre volte:
 
 Così il caso del Milan diventa una regola dichiarata ("la campionessa di Serie A gioca sempre la league phase della Champions League"), una riga nella lista di precedenza e uno scenario (strategia di test L3) che forza la doppia vittoria. Non può più dipendere dall'ordine di due percorsi di codice.
 
-### 3.10 Regole di carriera e di mondo
+### 3.13 Aggiunte dopo la revisione di note e sessioni del Mod
+
+Una passata sulle note del Mod (la sezione "Rebuilt exactly" di `release/notes-world-2026-27.md`, `notes/domestic-schedule.md`, `notes/sa401-exact-designs.md`, `notes/world-2025-26-split.md`, `internal/world2526/formats2627.md`, i file di passaggio di consegne delle sessioni) e sui messaggi di Davide in 53 sessioni SWOS ha aggiunto queste primitive.
 
 | Primitiva | JSON | Caso reale | Fonte nel Mod |
 |---|---|---|---|
-| `visibility.real_only` | un club in carriera gioca (e vede nel calendario) solo ciò che giocherebbe il club vero; le altre competizioni si simulano per vincitori e detentori | club di Serie D: il suo girone + Coppa Italia Serie D (CONVENTIONS 11) | logica di mondo del Mod |
-| `simulate.world_wide` | ogni competizione non giocata dal giocatore si simula ogni stagione, così ogni coppa ha vincitrice, finalista, detentori, albo d'oro | tutte le coppe continentali | `conti.c`, `simdraw.py` |
-| `honours.path` | il turno raggiunto da ogni club, per albo d'oro e resoconto di stagione | tutte le coppe | `conti` |
-| `season_naming` | edizione chiamata con l'anno (la 2026-27 gioca le edizioni 2027) | coppe continentali | `conti` |
-
-### 3.11 Presentazione (generata dalle specifiche)
-
-| Primitiva | JSON | Caso reale | Fonte nel Mod |
-|---|---|---|---|
-| `names.lang` | nomi per lingua con `short` e limite di larghezza | titoli di 35 byte, etichette di calendario di 70 px, 4 lingue | `titlelegs.py`, `complist.py` (CONVENTIONS) |
-| `explain` | pagina FORMAT e note delle regole generate dalla specifica, per lingua | pagine FORMAT, "Ogni nazione, ogni competizione" | `fmtpage.py`, `fmtprose.py`, `complist.py` |
-| `zones` | colori + legenda dalle etichette degli esiti | tutte le classifiche | `zones.py` |
+| `club.second_team` | `"second_team_of": "club:ita.juventus"` + regole per nazione: `max_level`, `never_into_first_team_level`, `place_passes_to_next`, `forced_down_with_first_team`, `excluded_from: [national_cup]`, `playoffs: allowed/denied` | Juventus Next Gen, Atalanta U23, Inter U23 (fino alla Serie B, play-off di C ammessi); Real Sociedad B; Stoccarda II (mai in 2. Bundesliga); Jong PSV; Benfica B; riserve neozelandesi | `formats2627.md` "Second teams" |
+| `division.refill` | se un club viene escluso (seconda squadra, licenza), la divisione mantiene la dimensione pescando da un pool dichiarato | Serie C riempita dalla riserva di Serie D | `ripool.py` |
+| `outcome.direct_if_gap` | un posto play-off diventa diretto se il distacco dalla posizione successiva supera N punti | Serie B: la 3ª sale direttamente con più di 14 punti sulla 4ª; la 17ª retrocede direttamente se la 16ª ha più di 4 punti di vantaggio | regole Serie B (4.0) |
+| `split.points.tiebreak_before_rounding` | dopo il dimezzamento, il primo criterio di parità sono i "punti prima dell'arrotondamento" | Romania, Grecia 5-8 | `split.py` |
+| `playoff.title_seed` | play-off per il titolo il cui tabellone dipende da chi ha vinto cosa: vincitori dei tornei A e C e prime due dell'aggregata; A = C -> niente play-off; finale diretta; semifinali | finale nazionale della Liga 1 peruviana | `sa401-exact-designs.md` §1 |
+| `groups.draw_with_heads` | teste di girone fisse (1ª, 2ª), le altre sorteggiate nei gironi senza fasce; le teste in casa all'ultima giornata | cuadrangulares colombiani | `sa401-exact-designs.md` §2 |
+| `constraint.shared_stadium` | club della stessa città o stadio mai in casa nello stesso giorno | Colombia (Dimayor) | `sa401-exact-designs.md` §2 |
+| `schedule.mirror_infer` | le giornate mancanti del secondo torneo ricavate come specchio del primo quando ogni giornata pubblicata coincide | Clausura di Perù, Colombia, Uruguay | `sa_exact.fixtures_full` |
+| `series.best_of` | un turno deciso al meglio delle N partite | primo turno dei play-off MLS (al meglio delle tre) | `domestic-schedule.md` |
+| `second_competition` | una seconda competizione nella stessa stagione per gli stessi club (campionati regionali, poi una fase nazionale) | Nuova Zelanda: leghe Northern/Central/Southern, poi National League Championship e finale | `domestic-schedule.md` |
+| `stage.starts_after` | una fase può cominciare solo quando un'altra (con la sua fase finale) è finita | Argentina: il Clausura è partito mentre si giocavano ancora i play-off dell'Apertura (segnalazione di Davide) | date in `domestic-schedule.md` |
+| `titles` | ogni titolo che una competizione assegna oltre alla classifica (campioni di fase, vincitore dei play-off, trofeo dei campioni, stagione regolare) è un'uscita, elencata in una pagina WINNERS e nell'albo d'oro | campioni di Apertura/Clausura, Trofeo de Campeones, MLS Cup e Supporters' Shield, Malta quando un club vince entrambe le fasi | pagina WINNERS (4.0) |
+| `decider.draw_lots` / `golden_goal` / `silver_goal` | modi storici: sorteggio invece dei rigori, golden o silver goal nei supplementari | Mondiale 1934, Mitropa (sorteggio); golden goal tenuto per dopo (Davide) | `historic.py`, `mitropa34.py` |
+| `decider.required` | ogni turno a eliminazione deve dichiarare come si decide; non esiste un valore predefinito | la finale della Copa do Brasil andava ai supplementari mentre la regola vera è rigori subito (predefinito ereditato dalla 3.2) | limite noto 4.0.1 |
+| `calendar.no_phantom_replays` | le date di ripetizione esistono solo se il modo di decidere del turno contiene `replay` | play-off a gara secca con date di ripetizione (Davide 21/10) | correzione in `gplay.c` |
+| `cup.entrants_from_current_divisions` | gli iscritti di una coppa si ricalcolano ogni stagione dalle divisioni come sono, con i bye veri per divisione | il Mestre promosso in C non giocava la Coppa Italia di C; la Coppa Italia del Siracusa non partiva dopo la promozione | `cupsfollow` della 4.0.1 |
+| `no_cup` | un modulo nazione può dichiarare che non si gioca una coppa nazionale | Messico, Honduras, Guatemala, Panama 2026-27 | dati |
+| `edition_format` | il formato di una competizione può cambiare per stagione (`valid_from`, `valid_to`), così un mondo storico gioca il formato vero di ogni anno | la Champions ha cambiato formato nel 1997-98; la Copa Libertadores 1996 aveva 5 gironi | richieste di Davide; `lib97.py` |
+| `holder.policy` | regole del detentore per epoca: gioca in più, prende il posto più basso della sua nazione, il suo posto viene tolto a un'altra federazione | 1984-85: il detentore gioca in più; detentore Libertadores 1996-97 nel girone della sua nazione al posto della 2ª | `careerworld.py`, `sacups.py` |
+| `approximation.declared` | quando motore o dati non possono essere esatti, la specifica lo dice in un campo, e il testo finisce nelle note di rilascio e nella pagina FORMAT | "Dichiarato: l'ordine dei turni del Paulista è ricostruito"; CONCACAF gol in trasferta e poi rigori | CONVENTIONS 9, 12 |
+| `world.min_structure` | un mondo può richiedere almeno la struttura del gioco originale (mai meno campionati o divisioni di SWOS 96/97) | le quattro divisioni inglesi nel Mondo 2026-27 | memoria "mai meno divisioni" |
+| `names.press_style` | nomi di club e competizioni come li scrivono i giornali, senza suffissi societari né sponsor | "Parma", non "Parma Calcio"; "COPPA ITALIA" senza sponsor | Davide 19/10 |
+| `display.stage_in_title` | classifiche e risultati mostrano la competizione con la fase ("LIGA P. - APERTURA") e spiegano gli azzeramenti | Argentina | Davide 19/10 |
 
 ## 4. Esempio: il modulo CONCACAF
 

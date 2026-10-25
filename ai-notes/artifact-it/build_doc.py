@@ -16,6 +16,7 @@ parts = [('state', 'competitions-in-openswos.md', 'Le competizioni oggi'),
          ('engine', 'competition-engine-proposal.md', 'Proposta del motore'),
          ('catalog', 'rule-catalogue.md', 'Moduli e regole'),
          ('tests', 'testing-strategy.md', 'Strategia di test'),
+         ('lessons', 'lessons-from-the-mod.md', 'Lezioni dal Mod'),
          ('ai', 'ai-development-guidelines.md', 'Linee guida AI')]
 body, toc = [], []
 for key, fn, short in parts:
@@ -35,7 +36,7 @@ for key, fn, short in parts:
         h = h.replace('href="%s"' % f2, 'href="#%s"' % k2)
     secs = [(m.group(1), re.sub('<[^>]+>', '', m.group(2))) for m in re.finditer(r'<h2 id="([^"]+)">(.*?)</h2>', h)]
     toc.append((key, short, title, secs))
-    body.append('<section class="part" id="%s"><p class="eyebrow">Parte %s</p><h1>%s</h1>%s</section>' % (key, 'ABCDE'[len(body)], html.escape(title), h))
+    body.append('<section class="part" id="%s"><p class="eyebrow">Parte %s</p><h1>%s</h1>%s</section>' % (key, 'ABCDEF'[len(body)], html.escape(title), h))
 nav = ''.join('<li><a class="p" href="#%s">%s</a><ol>%s</ol></li>' % (k, s, ''.join('<li><a href="#%s">%s</a></li>' % (i, t) for i, t in secs)) for k, s, _, secs in toc)
 tpl = open(sys.argv[1]).read()
 open(sys.argv[2], 'w').write(tpl.replace('{{NAV}}', nav).replace('{{BODY}}', '\n'.join(body)))

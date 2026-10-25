@@ -145,6 +145,9 @@ Test dell'adattatore tra OpenSWOS e il motore, eseguiti dal gioco in una modalit
 
 ## 4. Strumenti e integrazione continua
 
+- **Test isolati**: ogni test costruisce il suo mondo dai file; nessuna cache o stato condiviso tra test (le esecuzioni in serie dell'harness del Mod hanno prodotto falsi errori proprio per cache di moduli condivise).
+- **Dati distribuiti**: mondi golden e L5 girano sui data pack che si rilasciano davvero, mai solo su dati di test (CONVENTIONS 17a del Mod: un crash esisteva solo nelle build di rilascio).
+
 - `swc-test` esegue L0-L4 (test unitari C con un piccolo esecutore, scenari e mondi golden con `swc-sim`); `make test` in OpenSWOS aggiunge L5.
 - Matrice dell'integrazione continua: SDL x86_64 e arm64 a ogni commit; la build Amiga per i test unitari e L5 ogni notte (il target più severo, come dice `.claude/CLAUDE.md`).
 - La copertura si misura per primitiva, non per riga: il registro elenca i test unitari e gli scenari di ogni primitiva, e l'integrazione continua fallisce se una primitiva non ne ha.

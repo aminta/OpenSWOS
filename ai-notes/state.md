@@ -4,7 +4,11 @@
 - Fork aminta/OpenSWOS cloned to ~/OpenSWOS, branch convergence-docs from upstream 584367a.
 - docs/convergence/: README, competitions-in-openswos.md, competition-engine-proposal.md,
   rule-catalogue.md (modules/ports + every Mod 2026-27 rule + CONCACAF module), testing-strategy.md
-  (pyramid L0-L6, few E2E), ai-development-guidelines.md; Mermaid diagrams; INDEX.md row.
+  (pyramid L0-L6, few E2E), lessons-from-the-mod.md (31 real bugs -> prevention -> test),
+  ai-development-guidelines.md; Mermaid diagrams; INDEX.md row.
+- 2026-10-25 full pass on Mod notes + Davide's messages in 53 SWOS sessions (extracted from
+  ~/.claude/projects/*.jsonl user messages, keyword filter): catalogue §3.12 precedence/guarantees,
+  §3.13 23 new primitives (second teams, direct_if_gap, title_seed, cuadrangulares, best_of, titles...).
 - ai-notes/ (this folder) created on Davide's request: AI notes separate from developer docs.
 
 ## Decisions (proposed, not yet approved by Davide)
