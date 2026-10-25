@@ -12,6 +12,8 @@
 > documento mostra quattro formati reali nella spec (Liga MX, Serie C, Champions League league
 > phase, Argentina con promedio) e un piano a fasi, con le domande di licenza per Davide.
 
+Terms used throughout: a **golden file** is the expected output of a simulation, committed and compared on every change; a **callback** is a function the game lends the engine to answer its questions ("what was this match's result?"); results for tests come from two **providers**: the **automatic provider** derives plausible results from the seed and the match number (for golden files), the **scripted provider** forces exactly the results a scenario needs.
+
 Status: proposal for discussion, 2026-10-25. Companion of `competitions-in-openswos.md` (the
 current state) and `ai-development-guidelines.md` (how the work would be done).
 
@@ -23,7 +25,7 @@ current state) and `ai-development-guidelines.md` (how the work would be done).
 
 1. Any league, cup or multi-stage competition of any country, season or era expressible as **data**.
 2. **Deterministic**: a season is a pure function of (specs, seed, match results).
-3. **Testable without the game**: the engine runs headless with a stub result provider.
+3. **Testable without the game**: the engine runs headless with an automatic result provider.
 4. **Documented API and schema**, versioned, with validation tools; AI sessions write code
    against this contract, never against byte offsets.
 5. **The classic game stays the classic game**: the 1996 competitions run unchanged
@@ -66,7 +68,7 @@ flowchart TB
     SER["State serialiser"]
   end
   PACKS[("Data packs / modules<br/>JSON specs + clubs + names")]
-  TESTS["Validator, scenarios,<br/>golden worlds (stub results)"]
+  TESTS["Validator, scenarios,<br/>golden worlds (automatic results)"]
   PACKS --> LOAD --> STATE
   STATE --- STAGES
   STAGES --- RULES
@@ -135,8 +137,10 @@ calendar: { ... }       # §4.7
 | `average_table` (promedio) | `of: [competition ids]`, `seasons: 3`, `metric: points_per_match`, `newcomer: current_only \| fill_with` | a ranking |
 | `single_match` | `home`, `decider` | winner (supercups, Campeón de Campeones) |
 
-Stages run in order; a stage's `entrants` are ranking references such as `stage:apertura.table#1-8`
+Stages run in order; a stage's `entrants` are ranking references such as `apertura#1-8`
 or `link:qualified-from(ita.coppa-italia)`.
+
+**Position notation.** Inside a competition: `stage#N` and `stage#N-M` (`apertura#1-8` = 1st to 8th); for a group `stage.group#N` (`gironi.A#2-10`, `gironi.*#1` = every group winner). From another competition, prefix its id: `ita.serie-a:table#1-4`. This is the same grammar as the ports in `rule-catalogue.md`.
 
 **Apertura/Clausura** is not a special type: it is two `round_robin` stages (each with
 `resets: [points, stats]`), each followed by its own `knockout` (liguilla), plus an
@@ -280,17 +284,17 @@ sequenceDiagram
 
 ## 6. Determinism
 
-- **One RNG algorithm, specified bit for bit** (e.g. PCG32 or xoshiro128**, 32-bit integer only),
+- **One RNG algorithm, specified bit for bit** (a public, fixed algorithm such as PCG32, integers only),
   never `rand()`, never the clock inside the engine.
 - **Substreams by purpose**: each random decision draws from a stream derived from
   `hash(seed, season, rng_purpose)`. Adding a competition therefore does not change another
   competition's draw, which keeps golden files stable and diffs readable.
 - The game's match RNG (`Rand`/`Rand2`) is untouched; simulated results come from the host. For
-  tests a **stub provider** derives results from `hash(match_id, seed)` (with realistic goal
+  tests the **automatic provider** derives results from `hash(match_id, seed)` (with realistic goal
   distributions), so a whole world can run headless in milliseconds.
 - Iteration order is always by declared order or by id, never by pointer or hash-table order.
 
-**Golden-file harness**: `swc-sim --world W.json --seed 42 --seasons 3 --results stub > out.json`;
+**Golden-file harness**: `swc-sim --world W.json --seed 42 --seasons 3 --results auto > out.json`;
 CI compares `out.json` (every table, bracket, draw, link resolution) with `tests/golden/W-42.json`.
 A change that alters a golden file must say why in its commit. The same harness proves the 1996
 specs: run the faithful game path and the engine on the same seed and results, compare.
@@ -508,7 +512,7 @@ outcomes:
 |---|---|---|
 | 0 | Season golden test for the *current* OpenSWOS (seeded career, 2 seasons, JSON dump of tables, promotions, European places) | runs in CI, stable across SDL builds |
 | 1 | Schema v1 + validator + `swc-explain`; the 1996 competitions written as specs | validator green on all of them |
-| 2 | Engine core: round robin, knockout, tie-breakers, links; stub provider; golden files | 1996 English pyramid + FA Cup reproduce phase 0 exactly |
+| 2 | Engine core: round robin, knockout, tie-breakers, links; automatic provider; golden files | 1996 English pyramid + FA Cup reproduce phase 0 exactly |
 | 3 | Integration behind a switch: "extended career" uses the engine; classic careers untouched | phase 0 goldens unchanged |
 | 4 | Groups, playoff/playout, split, aggregate, average tables; draws with constraints | the four examples of §9 simulate 3 seasons, golden files committed |
 | 5 | Continental layer: access lists, coefficients, qualifying rounds, league phase | Mod's UEFA model (`uefaq` Python reference) and the engine agree on a frozen season |

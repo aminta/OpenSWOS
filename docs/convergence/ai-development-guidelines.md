@@ -48,7 +48,7 @@ panics are signals, typed structs, named-field saves) apply in full on top of th
   pointer order. Randomness only through the engine's RNG with a named purpose (substream).
 - Same specs + same seed + same results = byte-identical season output, on every target (SDL
   32/64-bit, Amiga). CI runs the golden harness on at least two targets.
-- Result-dependent behaviour is tested by **forcing** results through the stub provider, never by
+- Result-dependent behaviour is tested by **forcing** results through the scripted provider, never by
   re-running with different seeds hoping for the case (the Mod's rule, CONVENTIONS 15).
 
 ## 5. Documentation in sync

@@ -1,8 +1,8 @@
 # Lezioni dal Mod: bug veri e come il motore li impedisce
 
-> I bug e le trappole veri incontrati dal Mod SWOS 96/97 tra settembre e ottobre 2026 (segnalazioni dei giocatori, note di rilascio, note tecniche e messaggi di Davide in 53 sessioni) e, per ognuno: perché è successo, quale regola o controllo del motore lo rende impossibile, e quale test lo blocca per sempre. La maggior parte nasce da un'unica causa: la regola stava nell'ordine del codice o in un limite nascosto dell'exe, invece che in un dato dichiarato e controllato.
+> I bug e le trappole veri incontrati dal Mod SWOS 96/97 tra settembre e ottobre 2026 (segnalazioni dei giocatori, note di rilascio, note tecniche e messaggi di Davide in 53 sessioni di lavoro AI del Mod) e, per ognuno: perché è successo, quale regola o controllo del motore lo rende impossibile, e quale test lo blocca per sempre. La maggior parte nasce da un'unica causa: la regola stava nell'ordine del codice o in un limite nascosto dell'exe, invece che in un dato dichiarato e controllato.
 
-Stato: piano, 25/10/2026. Fonti: `release/notes-4.0.md` e `notes-4.0.1.md` del Mod (limiti noti e correzioni), `release/notes-world-2026-27.md`, `notes/CONVENTIONS.md` (insidie 18-19), `notes/domestic-schedule.md`, `notes/sa401-exact-designs.md`, i file di passaggio di consegne in `internal/handoff/` e i messaggi di Davide nelle sessioni SWOS (segnalazioni di Pietro, le carriere di Siracusa e Mestre, le carriere di Davide). Le primitive rimandano al "Catalogo delle regole", i livelli di test alla "Strategia di test".
+Stato: piano, 25/10/2026. Fonti: `release/notes-4.0.md` e `notes-4.0.1.md` del Mod (limiti noti e correzioni), `release/notes-world-2026-27.md`, `notes/CONVENTIONS.md` (insidie 18-19), `notes/domestic-schedule.md`, `notes/sa401-exact-designs.md`, i file di passaggio di consegne in `internal/handoff/` e i messaggi di Davide nelle sessioni SWOS (segnalazioni di giocatori come Pietro, le loro carriere con Siracusa e Mestre, le carriere di prova di Davide). Le primitive rimandano alla parte C (Moduli e catalogo), i livelli di test alla la parte D (Strategia di test).
 
 ## 1. Logica delle competizioni
 
@@ -31,11 +31,11 @@ Stato: piano, 25/10/2026. Fonti: `release/notes-4.0.md` e `notes-4.0.1.md` del M
 |---|---|---|---|
 | 17 | 24 squadre per campionato (tabelle di coppie) | Argentina 30, MLS 30 | nessuna dimensione fissa; generatore per qualsiasi n; il validatore avvisa solo sui limiti dell'interfaccia |
 | 18 | Le tabelle dispari non sono vere giornate (una squadra due volte in alcune giornate) | 15, 21 squadre; presenti anche nelle tabelle di OpenSWOS | giornate generate; invariante L2 |
-| 19 | 64 giornate per campionato con split; calendari da 44 giornate (Guatemala, El Salvador, Paraguay) oltre il motore | stato degli split | nessuna dimensione fissa |
+| 19 | Il motore degli split del Mod tiene al massimo 64 giornate per campionato; i calendari veri da 44 giornate di Guatemala, El Salvador e Paraguay non ci sono entrati nella 4.0 | stato degli split | nessuna dimensione fissa |
 | 20 | Cache di 100 squadre; salvataggio di carriera = un intervallo fisso di memoria | mondi grandi (4ª divisione inglese + league phase) | stato del motore in campi JSON con nome, niente intervalli di memoria |
 | 21 | Il fine stagione controlla "80 iscritti europei" e altrimenti si blocca | fine stagione del 1996 | i conteggi vengono dalle specifiche; il validatore li dimostra prima che la stagione cominci |
-| 22 | Prezzo medio dei giocatori 0 -> divisione per zero con club deboli | codice della forza | validazione delle rose (L0); test di proprietà con rose degeneri |
-| 23 | Numeri delle nazioni condivisi con gli id dei menu; serve uno spazio dei nomi per mondo | exe con più mondi | id testuali con spazio dei nomi |
+| 22 | Nel calcolo della forza di una squadra, un prezzo medio dei giocatori pari a zero (club molto deboli) causava una divisione per zero e il blocco del gioco | calcolo della forza | validazione delle rose (L0); test di proprietà con rose degeneri |
+| 23 | I numeri che identificano le nazioni erano gli stessi usati come numeri dei menu: con più mondi di carriera nello stesso exe entravano in conflitto | exe con più mondi | id testuali con spazio dei nomi |
 
 ## 3. Processo e test
 
@@ -53,8 +53,9 @@ Stato: piano, 25/10/2026. Fonti: `release/notes-4.0.md` e `notes-4.0.1.md` del M
 ## 4. Gli schemi dietro l'elenco
 
 1. **Regole che dipendono dall'ordine** (1, 2, 6, 7): il risultato dipendeva da quale codice girava prima. Il motore risolve i fine stagione tutti insieme, con una precedenza dichiarata, e controlla le garanzie.
-2. **Dati congelati** (3, 4, 16): liste che andavano ricalcolate ogni stagione erano fissate alla prima. Il motore ricava gli iscritti dallo stato attuale a ogni stagione.
+2. **Dati congelati o mancanti** (3, 4, 16): liste che andavano ricalcolate ogni stagione erano fissate alla prima, o mancava un dato (l'area geografica di un club, il legame tra prima e seconda squadra). Il motore ricava gli iscritti dallo stato attuale a ogni stagione e il validatore pretende i dati che servono.
 3. **Valori predefiniti impliciti** (8, 9, 10): comportamenti che nessuno aveva scelto. Lo schema non ha valori predefiniti per le regole che cambiano da competizione a competizione.
 4. **Uscite mancanti** (5, 11, 12, 13): il motore sapeva qualcosa che il giocatore non poteva vedere. Ogni titolo, zona e regola di visibilità è un'uscita della specifica, e le schermate la leggono.
 5. **Limiti nascosti** (17-23): dimensioni fissate nel 1996. Il motore non ne ha; il validatore avvisa solo dove l'interfaccia ha un limite vero.
 6. **Percorsi non testati** (24-28): test che giravano su altri dati o si affidavano alla fortuna. I test girano sui dati distribuiti, sono isolati e forzano i loro casi.
+7. **Regole di processo** (29-31): versioni dei dati, regole reinventate, testi fuori misura. Il motore li affida al validatore e al registro delle primitive.

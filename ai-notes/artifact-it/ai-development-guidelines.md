@@ -26,7 +26,7 @@ Stato: proposta, 25/10/2026. Vale per il lavoro sul motore delle competizioni e 
 
 - Niente orologio, niente `rand()`, niente virgola mobile nelle decisioni, niente iterazione su contenitori senza ordine o per ordine di puntatore. La casualità passa solo dal generatore del motore, con uno scopo dichiarato (flusso separato).
 - Stesse specifiche + stesso seme + stessi risultati = uscita della stagione identica byte per byte su ogni target (SDL 32/64 bit, Amiga). L'integrazione continua esegue i golden test su almeno due target.
-- I comportamenti che dipendono dai risultati si testano **forzando** i risultati con il fornitore finto, mai rigiocando con semi diversi sperando nel caso giusto (regola del Mod, CONVENTIONS 15).
+- I comportamenti che dipendono dai risultati si testano **forzando** i risultati con il fornitore automatico, mai rigiocando con semi diversi sperando nel caso giusto (regola del Mod, CONVENTIONS 15).
 
 ## 5. Documentazione allineata
 

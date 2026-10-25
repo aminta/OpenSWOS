@@ -14,6 +14,8 @@
 > separato. La conclusione è che nessuno dei due ha oggi un *motore dei formati* dichiarativo:
 > è il pezzo da costruire (vedi `competition-engine-proposal.md`).
 
+**For readers who do not read code.** A **record** is the fixed-layout block of data with which the 1996 game describes a competition; **patches** and **stubs** are changes written directly into the DOS executable. A **declarative** engine reads a competition's description from a data file and plays it, instead of having code written for each format. `path:line` references are for readers of the source and can be skipped.
+
 Status: draft for discussion, 2026-10-25. Branch `convergence-docs` of the fork `aminta/OpenSWOS`
 (upstream commit `584367a`). Line numbers refer to that commit.
 
@@ -72,7 +74,7 @@ Since the refactor documented in `docs/COMPETITION_DYNAMIC_REFACTOR.md` (status:
 appended to the runtime tables). Copa Libertadores (`_copaLibertadores`, compId 128) was the proof;
 the Amiga build gets it baked (`src/competition_data_copa_baked.c`).
 
-### 2.3 Teams and saves are JSON too
+### 2.2 Teams and saves are JSON too
 
 - **Teams**: `bin/data_json/teams/*.json` (72 files of `"type": "team"`), built by the data setup
   from the player's own copy (git-ignored: original data is not in the repo). The shape is the
@@ -90,7 +92,7 @@ For convergence this matters twice: a data pack can ship clubs in a format the g
 reads, and the id rule means a competition spec must not name *squads* by uuid (they change with
 every transfer) but a stable *club* identity, with squads as versioned data (proposal §4.1).
 
-### 2.2 Code (where the *rules* live)
+### 2.3 Code (where the *rules* live)
 
 Everything that decides *how* a season unfolds is C, translated function by function from the
 Amiga 68k assembly (comments cite `SWOS2.s` line numbers). The main files:
@@ -121,7 +123,7 @@ Amiga 68k assembly (comments cite `SWOS2.s` line numbers). The main files:
      `Career_ProcessCompetitionForNextSeason` (`:782`) -> primary (league, every division),
      secondary and tertiary (cups) -> then `Career_ProcessCompetitionForEuropeanCupQualification`
      (`src/career_eurocups.c:274`) and the Copa qualifier;
-   - **hard count gate**: the appended team count must equal `0x50` (16 + 32 + 32) plus the Copa
+   - **hard count gate**: the appended team count must equal `0x50` (80 = 16 + 32 + 32) plus the Copa
      count, and the three European lists must be exactly 16 / 32 / 32, else panic `0x8998` /
      `0x8999` (`src/career_season.c:1712-1733`);
    - draws the European cups (`Career_DrawEuropeanCupTeamsAndCopyGrids`, `src/career_eurocups.c:612`)
@@ -243,6 +245,8 @@ Amiga one, and the Mod's findings agree: the competition logic is the same.
 | New competition | impossible without patching code and data | possible as data (Copa) + a C module for its qualifier |
 
 ## 11. How the Mod extends the DOS game
+
+The Mod's format rules are numbered in its `notes/CONVENTIONS.md`; throughout these documents "CONVENTIONS N" means rule N of that file.
 
 The Mod (aminta/swos-9697-mod) keeps the 1996 exe and adds behaviour by patching the LE executable
 (`tools/le.py`, `lepatch.py`), inserting nasm stubs in code caves (`nasmcave.py`) and, for complex

@@ -12,7 +12,8 @@ def render_mermaid(src):
     return ('\n\n<figure class="diagram"><img alt="Diagramma" src="data:image/png;base64,%s">'
             '<details><summary>Sorgente Mermaid</summary><pre><code>%s</code></pre></details></figure>\n\n' % (b64, html.escape(src)))
 D = '/private/tmp/claude-501/-Users-davide/636f4170-d97f-45e6-a732-1190f4bba78c/scratchpad/it/'
-parts = [('state', 'competitions-in-openswos.md', 'Le competizioni oggi'),
+parts = [('glossary', 'glossary.md', 'Glossario'),
+         ('state', 'competitions-in-openswos.md', 'Le competizioni oggi'),
          ('engine', 'competition-engine-proposal.md', 'Proposta del motore'),
          ('catalog', 'rule-catalogue.md', 'Moduli e regole'),
          ('tests', 'testing-strategy.md', 'Strategia di test'),
@@ -36,7 +37,7 @@ for key, fn, short in parts:
         h = h.replace('href="%s"' % f2, 'href="#%s"' % k2)
     secs = [(m.group(1), re.sub('<[^>]+>', '', m.group(2))) for m in re.finditer(r'<h2 id="([^"]+)">(.*?)</h2>', h)]
     toc.append((key, short, title, secs))
-    body.append('<section class="part" id="%s"><p class="eyebrow">Parte %s</p><h1>%s</h1>%s</section>' % (key, 'ABCDEF'[len(body)], html.escape(title), h))
+    body.append('<section class="part" id="%s"><p class="eyebrow">%s</p><h1>%s</h1>%s</section>' % (key, 'Prima di leggere' if key == 'glossary' else 'Parte ' + 'ABCDEF'[len(body) - 1], html.escape(title), h))
 nav = ''.join('<li><a class="p" href="#%s">%s</a><ol>%s</ol></li>' % (k, s, ''.join('<li><a href="#%s">%s</a></li>' % (i, t) for i, t in secs)) for k, s, _, secs in toc)
 tpl = open(sys.argv[1]).read()
 open(sys.argv[2], 'w').write(tpl.replace('{{NAV}}', nav).replace('{{BODY}}', '\n'.join(body)))

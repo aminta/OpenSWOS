@@ -41,11 +41,11 @@ primitives are to `rule-catalogue.md`; test levels to `testing-strategy.md`.
 |---|---|---|---|
 | 17 | 24 clubs per league (pair tables) | Argentina 30, MLS 30 | no fixed sizes; generator for any n; validator warns only on UI limits |
 | 18 | Odd tables are not real rounds (a club twice on some matchdays) | 15, 21 clubs; also present in OpenSWOS's tables | generated rounds; L2 invariant |
-| 19 | 64 match days per split league; 44-matchday calendars (Guatemala, El Salvador, Paraguay) beyond the engine | split state | no fixed sizes |
+| 19 | The Mod's split engine holds at most 64 match days per league; the real 44-matchday calendars of Guatemala, El Salvador and Paraguay did not fit in 4.0 | split state | no fixed sizes |
 | 20 | Team cache of 100 teams; career save = a fixed memory range | big worlds (English 4th division + league phase) | engine state in named JSON fields, no memory ranges |
 | 21 | Season end checks "80 European entrants" and traps otherwise | the 1996 season end | counts come from the specs; the validator proves them before a season starts |
-| 22 | Average player price 0 -> division by zero with weak clubs | strength code | input validation of squads (L0); property tests with degenerate squads |
-| 23 | Country numbers shared with menu ids; one namespace per world needed | multi-world exe | string ids with namespaces |
+| 22 | In the team-strength calculation an average player price of zero (very weak clubs) caused a division by zero and a crash | strength calculation | input validation of squads (L0); property tests with degenerate squads |
+| 23 | Country numbers were the same numbers used as menu ids: with several career worlds in one exe they clashed | multi-world exe | string ids with namespaces |
 
 ## 3. Process and testing
 
@@ -64,8 +64,9 @@ primitives are to `rule-catalogue.md`; test levels to `testing-strategy.md`.
 
 1. **Order-dependent rules** (1, 2, 6, 7): the result depended on which code ran first. The engine resolves
    season ends as a whole, by declared precedence, and checks guarantees.
-2. **Frozen data** (3, 4, 16): lists that should be recomputed each season were fixed at the first season.
-   The engine derives entrants from the current state every season.
+2. **Frozen or missing data** (3, 4, 16): lists that should be recomputed each season were fixed at the first
+   season, or a datum was missing (a club's area, the first-team / second-team link). The engine derives entrants
+   from the current state every season and the validator requires the data it needs.
 3. **Implicit defaults** (8, 9, 10): a behaviour nobody chose. The schema has no defaults for rules that differ
    between competitions.
 4. **Missing outputs** (5, 11, 12, 13): the engine knew something the player could not see. Every title, zone
@@ -74,3 +75,5 @@ primitives are to `rule-catalogue.md`; test levels to `testing-strategy.md`.
    has a real limit.
 6. **Untested paths** (24-28): tests that ran on other data, or relied on luck. Tests run on shipped data,
    are hermetic, and force their cases.
+7. **Process rules** (29-31): data versions, re-invented rules, texts that do not fit. The validator and the
+   primitives registry own them.

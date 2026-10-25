@@ -2,6 +2,8 @@
 
 > OpenSWOS rappresenta campionati e coppe con gli stessi record dell'originale SWOS, oggi caricati da JSON ma con la stessa forma del 1996. I *dati* (squadre, divisioni, promozioni, gambe/supplementari/rigori per turno, gironi) sono già modificabili; la *logica* dei formati è nel codice C tradotto 1:1 dall'assembly Amiga: calendari da tabelle fisse di coppie (2-24 squadre), classifica a criteri fissi (punti, differenza reti, gol fatti, nome), promozioni e retrocessioni a conteggi, play-off solo per l'Inghilterra, qualificazioni europee a 16 + 32 + 32 squadre con controlli rigidi. Il Mod fa le stesse cose sull'eseguibile DOS con patch e stub e ha già quasi tutti i formati reali, ma ognuno come codice a sé. Nessuno dei due ha oggi un *motore dei formati* dichiarativo: è il pezzo da costruire.
 
+**Per chi non legge codice.** Il *Mod* è la modifica di SWOS 96/97 curata da Davide Lorigliola (aminta/swos-9697-mod). Un **record** è il blocco di dati a struttura fissa con cui il gioco del 1996 descrive una competizione; **patch** e **stub** sono modifiche inserite direttamente nell'eseguibile DOS (lo stub è un piccolo pezzo di codice macchina messo in uno spazio libero dell'exe). Un motore **dichiarativo** legge la descrizione di una competizione da un file di dati e la gioca, invece di avere codice scritto apposta per ogni formato. I riferimenti `file:riga` e i nomi delle funzioni servono a chi apre il codice: si possono saltare senza perdere il filo. Gli altri termini tecnici sono nel glossario all'inizio.
+
 Stato: bozza da discutere, 25/10/2026. Branch `convergence-docs` del fork `aminta/OpenSWOS` (commit upstream `584367a`); i numeri di riga si riferiscono a quel commit.
 
 Guida alla lettura: §1 il vocabolario, §2-§9 la macchina della stagione in OpenSWOS, §10 il confronto con il DOS originale, §11 con il Mod, §12 cosa è codice e cosa è dato, §13 le domande aperte.
@@ -34,7 +36,7 @@ Il JSON arriva al gioco in due modi (`docs/DATA_PIPELINE.md`): a runtime sulla v
 
 Dopo il refactor documentato in `docs/COMPETITION_DYNAMIC_REFACTOR.md` (completato il 30/09/2026) si può aggiungere una competizione **nuova** solo con dati (record e copia di lavoro allocati, aggiunti alle tabelle a runtime). La prova è stata la Copa Libertadores (`_copaLibertadores`, compId 128); per Amiga è compilata dentro (`src/competition_data_copa_baked.c`).
 
-### 2.3 Anche squadre e salvataggi sono JSON
+### 2.2 Anche squadre e salvataggi sono JSON
 
 - **Squadre**: `bin/data_json/teams/*.json` (72 file di tipo `"team"`), creati dal programma di installazione dati a partire dalla copia del gioco del giocatore (esclusi da git: i dati originali non sono nel repository). La forma è **la stessa del salvataggio `.CAR`** (`{ "team": {...}, "players": [16] }`, chiavi snake_case, byte delle abilità ancora impacchettati), quindi salvataggi e file squadra usano un unico caricatore C (`docs/DATA_JSON.md` §4).
 - **Id**: ogni squadra e ogni giocatore hanno un `uuid` e ogni squadra un `checksum` di ruoli, abilità e valori (`docs/TEAM_IDS.md`, `scripts/assign_team_uuids.py`). La regola è "un id nomina dati fissi": una squadra con giocatori o abilità diversi è una **squadra nuova con un id nuovo**; nomi e maglie non lo cambiano. Le squadre personalizzate (`CUSTOMn.TEAM`) salvano solo uuid + checksum della squadra di partenza e le modifiche estetiche; il server di matchmaking controlla entrambe le squadre per id.
@@ -42,7 +44,7 @@ Dopo il refactor documentato in `docs/COMPETITION_DYNAMIC_REFACTOR.md` (completa
 
 Per la convergenza conta due volte: un data pack può distribuire le squadre in un formato che il gioco legge già, e la regola degli id significa che una specifica di competizione non deve indicare le *rose* per uuid (cambiano a ogni trasferimento) ma un'identità di *club* stabile, con le rose come dati versionati (proposta §4.1).
 
-### 2.2 Codice (dove stanno le *regole*)
+### 2.3 Codice (dove stanno le *regole*)
 
 Tutto ciò che decide *come* si svolge una stagione è C, tradotto funzione per funzione dall'assembly 68k Amiga (i commenti citano le righe di `SWOS2.s`). I file principali:
 
@@ -59,12 +61,11 @@ Tutto ciò che decide *come* si svolge una stagione è C, tradotto funzione per 
 
 1. **Inizio carriera**: `InitCareer` (`src/career_init.c:628`) copia ogni modello nella sua copia di lavoro, scorrendo la tabella di carriera.
 2. **Durante la stagione**: ogni competizione viene caricata nel contenitore DIY (`InitCompetitionFromRecord`, `src/diy_competition.c:9460`; campionato `InitDIYLeagueFromRecord` `:9266`; coppa `InitDIYCupFromRecord` `:9181`). La competizione del giocatore si gioca in modo interattivo (`DIY_PlayOrSimulateLeagueFixture` `:11317`, `DIY_PlayCupMatchAndAdvance` `:10994`), le altre avanzano in automatico.
-3. **Fine stagione**: `Career_AdvanceToNextSeason_UpdateCompetitions` (`src/career_season.c:1662`):
-    - prepara le liste di qualificazione europee (e Copa);
-    - aggiorna gli slot delle coppe europee (`Career_UpdateEuroCupCompetitionSlot` ecc., `src/career_eurocups.c:465-521`);
-    - prima per la nazione del giocatore, poi per ogni nazione di `_careerCompetitionIdRemapTable`: `Career_ProcessCompetitionForNextSeason` (`:782`), cioè campionato (tutte le divisioni), poi coppe secondaria e terziaria, poi `Career_ProcessCompetitionForEuropeanCupQualification` (`src/career_eurocups.c:274`) e la qualificazione Copa;
-    - **controllo rigido dei conteggi**: il numero di squadre aggiunte deve essere `0x50` (16 + 32 + 32) più quelle della Copa, e le tre liste europee devono essere esattamente 16 / 32 / 32, altrimenti panic `0x8998` / `0x8999` (`src/career_season.c:1712-1733`);
-    - sorteggia le coppe europee (`Career_DrawEuropeanCupTeamsAndCopyGrids`, `src/career_eurocups.c:612`) e registra promozioni e retrocessioni nelle informazioni della stagione.
+3. **Fine stagione**: tutto passa da una funzione, `Career_AdvanceToNextSeason_UpdateCompetitions` (`src/career_season.c:1662`), che lavora in quattro tempi.
+    - *Preparazione*: azzera le liste delle squadre qualificate alle coppe europee e alla Copa, e aggiorna i posti delle coppe europee in corso (`src/career_eurocups.c:465-521`).
+    - *Nazione per nazione*: prima la nazione del giocatore, poi tutte le altre. Per ognuna chiude il campionato (divisione per divisione: promozioni e retrocessioni) e le coppe nazionali (`Career_ProcessCompetitionForNextSeason`, `:782`), poi assegna i suoi posti europei (`src/career_eurocups.c:274`) e quelli della Copa.
+    - *Controllo*: le squadre qualificate devono essere esattamente 80 (16 per la Coppa dei Campioni + 32 per la Coppa delle Coppe + 32 per la Coppa UEFA; nel codice il numero è scritto in esadecimale, `0x50`) più quelle della Copa. Se il conto non torna, il gioco si **ferma con un codice di errore** (un *panic*: `0x8998` o `0x8999`, `src/career_season.c:1712-1733`) invece di andare avanti con dati sbagliati.
+    - *Chiusura*: sorteggia le coppe europee (`src/career_eurocups.c:612`) e registra promozioni e retrocessioni.
 
 ```mermaid
 flowchart TD
@@ -85,7 +86,8 @@ Le divisioni di un campionato si elaborano in ordine (`processPrimaryCompetition
 
 - **Le giornate di campionato vengono da tabelle fisse di coppie**, una per ogni numero di squadre da 2 a 24 (`_fixtureSchedulePtrTable[23]`, `src/swos_amiga_ptr_imports.c:1495`; copia leggibile in `src/fixture_data.c`). `getCurrentFixtureTeamPtrs` (`src/diy_competition.c:1823`) legge la coppia `sectionMatchesProgress` della tabella per `totalMatchesInRound` squadre, traduce le posizioni con un rimescolamento per competizione (`shuffleAndPad`) e inverte casa/trasferta nel girone di ritorno. L'Europeo usa una tabella sua (`_euroChampFixtureData`, caso speciale per id a `:1843`).
 - **Conseguenza**: più di 24 squadre in una classifica non sono possibili senza codice nuovo, e l'ordine delle giornate è fissato dalla tabella (un "calendario vero" stagione per stagione non si può esprimere).
-- Le tabelle con un numero dispari di squadre **non sono vere giornate**: OpenSWOS legge `n // 2` coppie come una giornata e nelle sue tabelle (`src/fixture_data.c`) 9 "giornate" su 15 con 15 squadre e 15 su 21 con 21 squadre contengono una squadra due volte (verificato il 25/10/2026 raggruppando le coppie; le tabelle pari sono corrette). Il Mod ha trovato lo stesso difetto nell'exe DOS e ha riscritto le tabelle (`tools/oddtables.py`, il cui docstring spiega la trappola del calendario di carriera che ne deriva).
+- Le tabelle con un numero dispari di squadre **non sono vere giornate**. Con n squadre dispari il gioco considera "giornata" ogni gruppo di n/2 coppie (arrotondato per difetto), ma le coppie della tabella non sono ordinate così: alcune "giornate" contengono la stessa squadra due volte e un'altra squadra mai. Con 15 squadre succede in 9 giornate su 15, con 21 squadre in 15 su 21 (verificato il 25/10/2026 sui dati di `src/fixture_data.c`; le tabelle pari sono corrette).
+- Il Mod ha trovato lo stesso difetto nell'exe DOS e ha riscritto le tabelle (`tools/oddtables.py`): nel calendario di carriera il difetto faceva bloccare il gioco a inizio stagione.
 - **Calendario**: una competizione ha `begin_month`/`end_month` in ottavi di mese (`docs/DATA_PIPELINE.md`) e le fasi di campionato cambiano su `phaseStartMonths[]` (`DIY_AdvanceLeagueProgressAfterMatch`, `src/diy_competition.c:1967`). Il gioco distribuisce le giornate in quella finestra; non esistono date esplicite.
 
 ## 5. Classifiche e criteri di parità
@@ -118,7 +120,7 @@ Le divisioni di un campionato si elaborano in ordine (`processPrimaryCompetition
 
 ## 10. Confronto con il DOS 96/97 originale
 
-Fonti: il disassemblato di Zlatko Karakaš (`~/swos-mod/ref/swos.asm` e github.com/zlatkok/swos-port) e le note del Mod. Lo stesso `docs/TESTS.md` di OpenSWOS dice che la versione DOS è una ricompilazione di quella Amiga, e i risultati del Mod lo confermano: la logica delle competizioni è la stessa.
+Fonti: il disassemblato di Zlatko Karakaš (l'autore di SWOS++, che ha ricostruito il codice della versione DOS) (`~/swos-mod/ref/swos.asm` e github.com/zlatkok/swos-port) e le note del Mod. Lo stesso `docs/TESTS.md` di OpenSWOS dice che la versione DOS è una ricompilazione di quella Amiga, e i risultati del Mod lo confermano: la logica delle competizioni è la stessa.
 
 | Tema | DOS 96/97 (come trovato dal Mod) | OpenSWOS |
 |---|---|---|
@@ -126,11 +128,13 @@ Fonti: il disassemblato di Zlatko Karakaš (`~/swos-mod/ref/swos.asm` e github.c
 | Identità | per indirizzo (confronti tra puntatori) | per `compId` dal refactor del 2026 |
 | Calendario | tabelle di coppie `dseg_11F356[n-2]` (n = 2..24), quelle dispari non sono vere giornate | stesse tabelle (`_fixtureSchedulePtrTable`) |
 | Cache squadre | `g_selectedTeams` = 100 squadre; file carriera = `careerFileBuffer .. g_selectedTeams` | buffer portati; il salvataggio JSON elimina il legame con l'intervallo di byte |
-| Fine stagione | `cseg_91428`: controllo `cmp careerFileBuffer, 80` poi trappola `int 3` | stesso controllo come `PanicHaltLoop` con codici `0x8998/0x8999` |
+| Fine stagione | `cseg_91428`: controllo `cmp careerFileBuffer, 80` poi blocco del gioco (`int 3`, una trappola di debug) | stesso controllo come `PanicHaltLoop` con codici `0x8998/0x8999` |
 | Play-off | solo Inghilterra | solo Inghilterra |
 | Nuova competizione | impossibile senza patch di codice e dati | possibile con dati (Copa) + un modulo C per la sua qualificazione |
 
 ## 11. Come il Mod estende il gioco DOS
+
+Le regole che il Mod si è dato sui formati sono numerate nel file `notes/CONVENTIONS.md` del Mod; in tutto il documento "CONVENTIONS N" rimanda al punto N di quel file. I nomi di file in corsivo di codice nella tabella (`split.py`, `gplay.c`...) sono gli strumenti del Mod dove ogni cosa è implementata oggi: servono solo a chi vuole controllare.
 
 Il Mod (aminta/swos-9697-mod) mantiene l'exe del 1996 e aggiunge comportamenti con patch dell'eseguibile LE (`tools/le.py`, `lepatch.py`), stub nasm in spazi liberi del codice (`nasmcave.py`) e, per la logica complessa, piccoli moduli C compilati per i486 e collegati all'exe (`tools/cobj.py`, es. `uefaq.c`, `conti.c`, `gplay.c`, `statesim.c`). I pacchetti dati (`packs/`, `pack.json`) vengono compilati in file squadra e tabelle da `mkseason.py` / `careerworld.py`. Cosa aggiunge, per modulo (riassunto, non codice):
 
@@ -151,7 +155,7 @@ Il Mod (aminta/swos-9697-mod) mantiene l'exe del 1996 e aggiunge comportamenti c
 | Colori di zona, legenda, pagine FORMAT | `zones.py`, `fmtpage.py`, `fmtprose.py`, `complist.py` | l'elenco dei formati è generato (`complist.py`) |
 | Pool fuori file, cache squadre grande | `ripool.py`, `worldpool.py`, interruttore cache grande | |
 
-Le regole del Mod sui formati sono in `notes/CONVENTIONS.md` (formati reali esatti; un unico motore di spareggio; ogni regola documentata; i test che dipendono dai risultati si forzano, non si rigiocano). I test sono un harness automatico che gioca l'exe vero in DOSBox-X (`tools/swostest.py`).
+Le regole principali di CONVENTIONS sono: formati reali esatti; un unico motore di spareggio; ogni regola documentata; i test che dipendono dai risultati si forzano, non si rigiocano). I test sono un harness automatico che gioca l'exe vero in DOSBox-X (`tools/swostest.py`).
 
 **Cosa ne emerge**: il Mod ha già il *catalogo* dei formati reali (91 nazioni, 134 divisioni, 87 coppe nazionali, 15 coppe continentali nel Mondo 2026-27, elencati in `release/world-2026-27-competitions.md`) e diversi linguaggi di specifica *parziali* (`pack.json`, `statespec`, `complist`), ma ogni formato è implementato dove trovava spazio nell'exe. Il costo si vede nell'elenco delle insidie note (CONVENTIONS 18-19): trappole scoperte tardi, hook di caricamento saltati in silenzio.
 

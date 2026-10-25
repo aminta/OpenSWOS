@@ -92,7 +92,7 @@ A failing random case is shrunk to a minimal spec and saved as a regression scen
 
 The level that replaces most of today's end-to-end runs. A scenario is a small YAML file: a spec fragment
 (or a reference to a module), a **scripted result provider** that forces the exact results the case needs,
-and the expected outcome. No re-running in the hope of a case: the result is forced, as the Mod's
+and the expected outcome (the **scripted provider**). No re-running in the hope of a case: the result is forced, as the Mod's
 CONVENTIONS 15 already requires.
 
 ```yaml
@@ -141,7 +141,7 @@ Rules for scenarios:
 
 ### L4 — Golden worlds
 
-A few whole worlds simulated headless with the stub provider (proposal §6): World 2026-27 for three seasons,
+A few whole worlds simulated headless with the automatic provider (proposal §6): World 2026-27 for three seasons,
 the 1996 world, one historic world. The output (every table, bracket, draw, link resolution, honours) is a
 JSON file compared with the committed golden file. A diff must be explained in the commit that causes it.
 Golden worlds catch interactions between modules that scenarios do not cover (cascades of continental

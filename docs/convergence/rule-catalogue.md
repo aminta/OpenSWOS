@@ -122,7 +122,7 @@ World 2026-27. Field names follow the proposal's schema.
 | `round_robin.legs` | `"legs": 1..4` | quadruple round robin: Canada PL (8 clubs, 28 matchdays) and 13 other leagues | game + `split.py` (games) |
 | `round_robin.odd_rest` | automatic when n is odd: one club rests per matchday | Malta, Wales, Iceland... ("one club rests each matchday") | `oddtables.py` |
 | `table.size_unlimited` | no 24-club limit | Argentina LPF and MLS, 30 clubs | `longtable.py` |
-| `groups.parallel` | `"type": "groups", "level_of_pyramid": 3, "allocation": "geographic"` | Serie C 3x20, Serie D 9 groups, El Salvador zones, Primera Nacional 2x18 | `pgroups.py` |
+| `groups.parallel` | `"type": "groups", "level": 3, "allocation": "geographic"` | Serie C 3x20, Serie D 9 groups, El Salvador zones, Primera Nacional 2x18 | `pgroups.py` |
 | `groups.geographic_move` | promoted/relegated clubs join the group of their `area` | "promoted and relegated clubs join the group of their area" | `pgroups.py` + clubs `area` |
 | `groups.conferences` | groups that only define the table, the calendar crosses them | MLS East/West | `split.py` (stage fixtures) |
 | `groups.cross_blocks` | `"cross": k`: clubs in k blocks play only the other blocks | Paranaense, Catarinense | `statespec.py` |
@@ -273,12 +273,14 @@ from best to worst:
                 "uefa.uecl:league-phase", "uefa.uecl:play-off", "uefa.uecl:q3", "uefa.uecl:q2", "uefa.uecl:q1" ]
 ```
 
-The resolver gives every club its **best** entitlement by this list. Every other entitlement of that club
-becomes a **vacated slot**, filled by the declared `cascade` rule of that slot (next club of the same
-league, or the access list's rebalancing, as UEFA's own access list says). The order in which modules,
-competitions or code run cannot change the result: the algorithm is "best entitlement wins, then
-cascade", applied to the whole set at once, repeated until stable (it always ends: every step moves a club
-up the precedence list or fills a slot).
+The resolver works in four steps:
+
+1. collect every entitlement of every club;
+2. give each club its highest entitlement in the precedence list;
+3. every other entitlement of that club becomes a **vacated slot**, filled by that slot's declared `cascade` rule (next club of the same league, or the access list's rebalancing, as UEFA's own access list says);
+4. repeat from step 2 until no slot changes. It always ends: every step moves a club up the list or fills a slot.
+
+The order in which modules, competitions or code run cannot change the result, because the rule is applied to all entitlements at once.
 
 **Guarantees.** A module can state what must always be true, and the engine checks it at every season end:
 
@@ -306,7 +308,7 @@ It can no longer depend on the order of two code paths.
 
 A pass over the Mod's notes (`release/notes-world-2026-27.md` "Rebuilt exactly", `notes/domestic-schedule.md`,
 `notes/sa401-exact-designs.md`, `notes/world-2025-26-split.md`, `internal/world2526/formats2627.md`, the
-sessions' handoff files) and over Davide's messages in 53 SWOS sessions added these primitives.
+sessions' handoff files) and over Davide's messages in 53 AI work sessions of the Mod added these primitives.
 
 | Primitive | JSON | Real case | Mod source |
 |---|---|---|---|
@@ -432,12 +434,12 @@ What changes when modules come and go:
    `participants.count` in the *worst* case (after cascades and fallbacks).
 4. **Pyramid**: each promotion has a matching relegation slot one level up/down (per area for parallel
    groups), and the lowest division declares `lowest_division`.
-5. **Calendar**: every stage fits its months; no club needs two matches in one week (the bug class the
+5. **Calendar**: every stage fits its months; every club gets at least the declared minimum rest (`rest_rule`; by default never two matches in one week) (the bug class the
    Mod met with odd tables and career calendars).
 6. **Draws**: every constrained draw is satisfiable for the season-1 entrants and for a sample of
    generated seasons.
 7. **Texts**: names in every declared language, within width limits, only characters the game's font has.
-8. **Simulation smoke test**: three seasons with the stub provider, no unresolved state, no club in two
+8. **Simulation smoke test**: three seasons with the automatic provider, no unresolved state, no club in two
    divisions, golden file written for review.
 
 ## 6. How the code follows (almost automatically)

@@ -2,7 +2,7 @@
 
 > Come aggiungere o togliere campionati e coppe (nazionali o continentali) come *moduli* dichiarativi, e l'elenco completo delle regole che il motore deve avere in partenza, ricavato da quelle che il Mod usa nel Mondo 2026-27. Un mondo è un elenco di moduli; i moduli si collegano solo attraverso *porte* con un nome (es. `mex.liga-mx:apertura.champion`), così uno si può togliere o cambiare senza toccare gli altri. Ogni regola è una *primitiva* con nome, campi JSON, test e testo generato; una competizione nuova non richiede codice, solo dati. In fondo: il modulo CONCACAF completo come esempio e cosa controlla il validatore.
 
-Stato: piano, 25/10/2026. Estende la "Proposta del motore" (il modello delle specifiche, §4) con il sistema dei moduli e l'elenco completo delle primitive. Fonti del catalogo: `release/world-2026-27-competitions.md` del Mod (ogni competizione del Mondo 2026-27, generato da `tools/complist.py`), `notes/continental-cups.md`, `notes/CONVENTIONS.md` e gli strumenti citati in ogni riga. Dati e codice del Mod sono riassunti, non copiati.
+Stato: piano, 25/10/2026. Estende la parte B (Proposta del motore) (il modello delle specifiche, §4) con il sistema dei moduli e l'elenco completo delle primitive. Fonti del catalogo: `release/world-2026-27-competitions.md` del Mod (ogni competizione del Mondo 2026-27, generato da `tools/complist.py`), `notes/continental-cups.md`, `notes/CONVENTIONS.md` e gli strumenti citati in ogni riga. Dati e codice del Mod sono riassunti, non copiati.
 
 ## 1. Moduli
 
@@ -13,12 +13,12 @@ Un **modulo** è una cartella che aggiunge competizioni (e i club che servono) a
 ```
 modules/
   mex/
-    module.json          # manifest: id, version, provides, requires, licence, sources
-    competitions.json    # specs (proposal §4), one or more competitions
-    clubs.json           # club ids, names, area, rivals, squad uuids per season
-    names.json           # display names, short forms, round names, per language
-    fixtures/2026-27/    # optional: real fixture lists / real draws for season 1
-    credits.md           # data sources and their licences
+    module.json          # manifesto: id, versione, porte fornite e richieste, licenza, fonti
+    competitions.json    # specifiche (parte B §4), una o più competizioni
+    clubs.json           # id dei club, nomi, area, rivali, uuid delle rose per stagione
+    names.json           # nomi, forme brevi, nomi dei turni, per lingua
+    fixtures/2026-27/    # facoltativo: calendari e sorteggi veri della prima stagione
+    credits.md           # fonti dei dati e loro licenze
 ```
 
 `clubs.json` rimanda alle rose nel formato JSON squadre che OpenSWOS usa già (`docs/DATA_JSON.md` §4), così il gioco le carica con il suo caricatore. Un club ha un id stabile (`club:mex.america`); l'uuid della rosa cambia a ogni versione della rosa (`docs/TEAM_IDS.md`), quindi l'associazione è per stagione.
@@ -91,6 +91,8 @@ L'ordine di risoluzione è dichiarato da chi legge (proposta §4.6 `cascade`), e
 
 ## 3. Catalogo delle regole
 
+Come leggere le tabelle: **Primitiva** è il nome della regola nel motore; **JSON** mostra come si scrive nei dati; **Caso reale** dove la regola serve nel Mondo 2026-27; **Fonte nel Mod** il file del Mod dove la regola è implementata oggi (serve solo a chi vuole controllare). Le sigle di competizioni e leghe sono nel glossario.
+
 Ogni riga è una **primitiva**: una regola con nome, campi JSON, un'implementazione C, test unitari e una frase modello per `swc-explain`. "Fonte nel Mod" indica dove il Mod la implementa oggi; il caso reale viene dal Mondo 2026-27.
 
 ### 3.1 Struttura dei campionati
@@ -100,7 +102,7 @@ Ogni riga è una **primitiva**: una regola con nome, campi JSON, un'implementazi
 | `round_robin.legs` | `"legs": 1..4` | girone a 4 giri: Canada PL (8 squadre, 28 giornate) e altri 13 campionati | gioco + `split.py` (games) |
 | `round_robin.odd_rest` | automatico con n dispari: una squadra riposa a ogni giornata | Malta, Galles, Islanda... | `oddtables.py` |
 | `table.size_unlimited` | nessun limite di 24 squadre | Argentina LPF e MLS, 30 squadre | `longtable.py` |
-| `groups.parallel` | `"type": "groups", "level_of_pyramid": 3, "allocation": "geographic"` | Serie C 3x20, Serie D 9 gironi, zone di El Salvador, Primera Nacional 2x18 | `pgroups.py` |
+| `groups.parallel` | `"type": "groups", "level": 3, "allocation": "geographic"` | Serie C 3x20, Serie D 9 gironi, zone di El Salvador, Primera Nacional 2x18 | `pgroups.py` |
 | `groups.geographic_move` | promosse e retrocesse entrano nel girone della loro `area` | "promosse e retrocesse vanno nel girone della loro area" | `pgroups.py` + `area` dei club |
 | `groups.conferences` | gironi che definiscono solo la classifica, il calendario li incrocia | MLS Est/Ovest | `split.py` (fixtures di fase) |
 | `groups.cross_blocks` | `"cross": k`: club in k blocchi che giocano solo contro gli altri blocchi | Paranaense, Catarinense | `statespec.py` |
@@ -244,7 +246,14 @@ Una segnalazione vera sulla 4.0.1 del Mod mostra perché serve una primitiva app
                 "uefa.uecl:league-phase", "uefa.uecl:play-off", "uefa.uecl:q3", "uefa.uecl:q2", "uefa.uecl:q1" ]
 ```
 
-Il risolutore dà a ogni club il suo diritto **migliore** secondo questa lista. Ogni altro diritto di quel club diventa un **posto liberato**, riempito dalla regola `cascade` dichiarata per quel posto (club successivo dello stesso campionato, o il ribilanciamento dell'access list, come prevede la stessa access list UEFA). L'ordine in cui girano moduli, competizioni o codice non può cambiare il risultato: l'algoritmo è "vince il diritto migliore, poi si scala", applicato a tutto l'insieme insieme, ripetuto finché non cambia più niente (finisce sempre: ogni passo sposta un club più in alto nella lista o riempie un posto).
+Il risolutore lavora in quattro passi:
+
+1. raccoglie tutti i diritti di ogni club;
+2. a ogni club dà il diritto più alto nella lista di precedenza;
+3. ogni altro diritto di quel club diventa un **posto liberato**, che viene riempito con la regola `cascade` dichiarata per quel posto (il club successivo dello stesso campionato, oppure il ribilanciamento previsto dall'access list, come fa la UEFA);
+4. ripete dal passo 2 finché nessun posto cambia più. Finisce sempre: ogni passo sposta un club più in alto nella lista o riempie un posto.
+
+L'ordine in cui girano moduli, competizioni o codice non può cambiare il risultato, perché la regola è applicata a tutti i diritti insieme.
 
 **Garanzie.** Un modulo può dichiarare cosa deve essere sempre vero, e il motore lo controlla a ogni fine stagione:
 
@@ -258,14 +267,14 @@ Il risolutore dà a ogni club il suo diritto **migliore** secondo questa lista. 
 Una garanzia si controlla tre volte:
 
 1. dal **validatore**, che dimostra sulla precedenza dichiarata che nessuna combinazione di diritti può violarla (qui: il diritto della campionessa di Serie A è `ucl:league-phase`, il primo della lista, quindi nessun altro diritto può spingerla più in basso);
-2. dai **test di proprietà** (strategia di test L2), che danno a club casuali combinazioni casuali di titoli;
+2. dai **test di proprietà** (parte D, livello L2), che danno a club casuali combinazioni casuali di titoli;
 3. **a runtime**: se a un fine stagione una garanzia risultasse falsa, il motore si ferma con un errore che nomina il club, la garanzia e i diritti coinvolti, invece di produrre una stagione sbagliata.
 
-Così il caso del Milan diventa una regola dichiarata ("la campionessa di Serie A gioca sempre la league phase della Champions League"), una riga nella lista di precedenza e uno scenario (strategia di test L3) che forza la doppia vittoria. Non può più dipendere dall'ordine di due percorsi di codice.
+Così il caso del Milan diventa una regola dichiarata ("la campionessa di Serie A gioca sempre la league phase della Champions League"), una riga nella lista di precedenza e uno scenario (parte D, livello L3) che forza la doppia vittoria. Non può più dipendere dall'ordine di due percorsi di codice.
 
 ### 3.13 Aggiunte dopo la revisione di note e sessioni del Mod
 
-Una passata sulle note del Mod (la sezione "Rebuilt exactly" di `release/notes-world-2026-27.md`, `notes/domestic-schedule.md`, `notes/sa401-exact-designs.md`, `notes/world-2025-26-split.md`, `internal/world2526/formats2627.md`, i file di passaggio di consegne delle sessioni) e sui messaggi di Davide in 53 sessioni SWOS ha aggiunto queste primitive.
+Una passata sulle note del Mod (la sezione "Rebuilt exactly" di `release/notes-world-2026-27.md`, `notes/domestic-schedule.md`, `notes/sa401-exact-designs.md`, `notes/world-2025-26-split.md`, `internal/world2526/formats2627.md`, i file di passaggio di consegne delle sessioni) e sui messaggi di Davide in 53 sessioni di lavoro AI del Mod ha aggiunto queste primitive.
 
 | Primitiva | JSON | Caso reale | Fonte nel Mod |
 |---|---|---|---|
@@ -382,16 +391,16 @@ Cosa succede quando i moduli entrano ed escono:
 2. **Porte**: ogni `requires` risolto; ogni `optional` risolto o coperto da `if_missing`; nessuna porta fornita da due moduli.
 3. **Conteggi**: i partecipanti di ogni fase = la dimensione della fase (bye compresi); le access list riempiono `participants.count` anche nel caso *peggiore* (dopo scalate e ripieghi).
 4. **Piramide**: ogni promozione ha un posto di retrocessione corrispondente un livello sopra/sotto (per area con i gironi paralleli), e la divisione più bassa dichiara `lowest_division`.
-5. **Calendario**: ogni fase sta nei suoi mesi; nessun club deve giocare due partite nella stessa settimana (la classe di errori che il Mod ha incontrato con le tabelle dispari e i calendari di carriera).
+5. **Calendario**: ogni fase sta nei suoi mesi; ogni club ha almeno il riposo minimo dichiarato (`rest_rule`, di base mai due partite nella stessa settimana) (la classe di errori che il Mod ha incontrato con le tabelle dispari e i calendari di carriera).
 6. **Sorteggi**: ogni sorteggio con vincoli è risolvibile per i partecipanti della prima stagione e per un campione di stagioni generate.
 7. **Testi**: nomi in ogni lingua dichiarata, entro i limiti di larghezza, solo con caratteri che il font del gioco ha.
-8. **Prova di simulazione**: tre stagioni con il fornitore finto, nessuno stato irrisolto, nessun club in due divisioni, golden file scritto per la revisione.
+8. **Prova di simulazione**: tre stagioni con il fornitore automatico, nessuno stato irrisolto, nessun club in due divisioni, golden file scritto per la revisione.
 
 ## 6. Come segue il codice (quasi in automatico)
 
 - **Un registro delle primitive.** Ogni primitiva è una voce: frammento di schema, funzione/i C, test unitari, frasi modello in ogni lingua. Lo schema e la sua documentazione di riferimento sono generati dal registro, così i documenti non possono divergere dal codice.
 - **Aggiungere una competizione non aggiunge mai codice.** Aggiunge un modulo; l'integrazione continua lo valida e lo simula.
-- **Aggiungere una regola** (raro) è una pull request: voce del registro + implementazione + test + frasi modello, revisionata da sola ("Linee guida AI"). Il catalogo qui sopra è l'insieme obiettivo della versione 1, così il Mondo 2026-27 non ha bisogno di regole nuove dopo.
+- **Aggiungere una regola** (raro) è una pull request: voce del registro + implementazione + test + frasi modello, revisionata da sola (parte F, Linee guida AI). Il catalogo qui sopra è l'insieme obiettivo della versione 1, così il Mondo 2026-27 non ha bisogno di regole nuove dopo.
 - **Importatori** convertono i dati che il Mod ha già in moduli: campionati/split/gironi paralleli di `pack.json`, campionati statali di `statespec`, formati e access list di `conti`, tabelloni veri delle coppe di `cupsf`. L'uscita di `complist.py` del Mod per il Mondo 2026-27 diventa il test di accettazione: `swc-explain` deve dire la stessa cosa per ogni competizione.
 - **Modelli di partenza**: `swc new country mex --levels 2 --cup`, `swc new confederation concacaf` scrivono lo scheletro di un modulo con segnaposto e una validazione che fallisce elencando cosa riempire.
 

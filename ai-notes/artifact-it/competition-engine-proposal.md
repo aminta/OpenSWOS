@@ -2,7 +2,13 @@
 
 > Un *motore delle competizioni* separato dal gioco (libreria C99 senza dipendenze, compilabile anche per Amiga), guidato da **specifiche dichiarative** (JSON validato da JSON Schema) che descrivono ogni competizione come una sequenza di *fasi*, collegate da *link* (qualificazioni, promozioni, retrocessioni, posti continentali). Il motore non gioca le partite: chiede i risultati al gioco con una callback, così la logica dei formati si può testare da sola. Tutto è **deterministico**: stessa specifica + stesso seme + stessi risultati = stessa stagione, verificata da *golden file*. I formati del 1996 diventano specifiche "originali" (il gioco classico resta identico), i formati del Mod diventano *data pack*.
 
-Stato: proposta da discutere, 25/10/2026. Accompagna "Le competizioni oggi" (stato attuale) e "Linee guida per lo sviluppo con AI" (come si lavorerebbe).
+Tre termini usati ovunque in questa parte:
+
+- un **golden file** è l'uscita attesa di una simulazione (tutte le classifiche, i sorteggi, le promozioni), salvata una volta nel repository e confrontata a ogni modifica: se cambia, chi ha fatto la modifica deve spiegare perché;
+- una **callback** è una funzione che il gioco presta al motore: il motore chiede "che risultato ha fatto questa partita?" e il gioco risponde;
+- i risultati di prova vengono da due **fornitori**: il **fornitore automatico** inventa risultati plausibili a partire dal seme e dal numero della partita (serve per i golden file); il **fornitore scritto a mano** impone esattamente i risultati che servono a uno scenario di test (serve per i casi particolari).
+
+Stato: proposta da discutere, 25/10/2026. Accompagna la parte A (Competizioni oggi) (stato attuale) e la parte F (Linee guida AI) (come si lavorerebbe).
 
 ## 1. Obiettivi e non obiettivi
 
@@ -10,7 +16,7 @@ Stato: proposta da discutere, 25/10/2026. Accompagna "Le competizioni oggi" (sta
 
 1. Ogni campionato, coppa o competizione a più fasi di qualsiasi nazione, stagione o epoca esprimibile come **dati**.
 2. **Determinismo**: una stagione è una funzione pura di (specifiche, seme, risultati delle partite).
-3. **Testabile senza il gioco**: il motore gira senza interfaccia con un fornitore di risultati finto (stub).
+3. **Testabile senza il gioco**: il motore gira senza interfaccia con un **fornitore automatico** di risultati.
 4. **API e schema documentati**, versionati, con strumenti di validazione: le sessioni AI scrivono codice contro questo contratto, mai contro offset di byte.
 5. **Il gioco classico resta il gioco classico**: le competizioni del 1996 girano invariate (con il codice fedele o con specifiche dimostrate equivalenti dai golden test).
 
@@ -79,16 +85,16 @@ Un **mondo** (un universo di carriera) contiene **competizioni**; una competizio
 
 ```yaml
 id: ita.serie-a
-kind: league            # league | cup | league-cup | supercup | continental | playoff | tournament
-country: ITA            # FIFA/IOC-style code; continental bodies: UEFA, CONMEBOL ...
-level: 1                # pyramid level (leagues only)
-season_span: cross-year # cross-year (2026-27) | calendar-year (2026)
-names: { en: "Serie A", it: "Serie A" }   # see §10
-participants: { count: 20, source: link }  # who enters: link | fixed list | draw from pool
+kind: league            # campionato | coppa | coppa di lega | supercoppa | continentale | play-off | torneo
+country: ITA            # codice stile FIFA/CIO; confederazioni: UEFA, CONMEBOL ...
+level: 1                # livello nella piramide (solo campionati)
+season_span: cross-year # a cavallo di due anni (2026-27) | anno solare (2026)
+names: { en: "Serie A", it: "Serie A" }   # vedi §10
+participants: { count: 20, source: link }  # chi partecipa: link | lista fissa | sorteggio da un pool
 points: { win: 3, draw: 1, loss: 0 }
-stages: [ ... ]         # §4.3
-outcomes: [ ... ]       # §4.6: titles, promotion, relegation, places
-calendar: { ... }       # §4.7
+stages: [ ... ]         # vedi §4.3
+outcomes: [ ... ]       # vedi §4.6: titoli, promozioni, retrocessioni, posti
+calendar: { ... }       # vedi §4.7
 ```
 
 ### 4.3 Tipi di fase
@@ -98,14 +104,18 @@ calendar: { ... }       # §4.7
 | `round_robin` (girone all'italiana) | `legs` (1..4), `schedule: generated \| fixed`, `home_balance` | una classifica |
 | `groups` (gironi) | `groups` (numero e dimensioni, anche diverse), `allocation: draw \| fixed \| geographic`, `legs`, opzioni del girone | classifica per girone + eventuale classifica tra gironi (`best_of`: es. migliori terze) |
 | `league_phase` (sistema svizzero) | `pots`, `opponents_per_pot`, `home_away_split`, `constraints` | una classifica |
-| `knockout` (eliminazione diretta) | `rounds[]`, ognuno con `legs` (1/2), `decider` (vedi 4.4), `home: draw \| better_placed \| better_placed_second_leg \| neutral \| fixed`, `byes`, `pairing: draw \| seeded \| bracket \| fixed` | vincenti / perdenti per turno, classifica finale |
+| `knockout` (eliminazione diretta) | `rounds[]`: per ogni turno quante gare, come si decide, chi gioca in casa, i bye e come si formano le coppie (dettagli sotto la tabella) | vincenti / perdenti per turno, classifica finale |
 | `playoff` (play-off / play-out) | come knockout + `entrants: [posizioni]`, `skip_if: {points_gap_ge: 8}` | vincente/i, perdente/i |
 | `split` (poule) | `after_stage`, `sections: [{positions: 1-6, legs: 1}, ...]`, `carry: points \| halve_points \| none` | classifiche per sezione, classifica finale unita |
 | `aggregate_table` (classifica aggregata) | `of: [id fasi]`, `mode: sum \| average` | una classifica (annuale Apertura+Clausura) |
 | `average_table` (promedio) | `of: [id competizioni]`, `seasons: 3`, `metric: points_per_match`, `newcomer: current_only \| fill_with` | una classifica |
 | `single_match` (partita secca) | `home`, `decider` | vincente (supercoppe, Campeón de Campeones) |
 
-Le fasi si giocano in ordine; i partecipanti di una fase (`entrants`) sono riferimenti a classifiche come `stage:apertura.table#1-8` o `link:qualified-from(ita.coppa-italia)`.
+I parametri di un turno `knockout`: `legs` = gara secca (1) o andata e ritorno (2); `decider` = come si decide in parità (§4.4); `home` = chi gioca in casa (`draw` sorteggio, `better_placed` la meglio piazzata, `better_placed_second_leg` la meglio piazzata al ritorno, `neutral` campo neutro, `fixed` come da calendario); `byes` = squadre che passano il turno senza giocare; `pairing` = come si formano le coppie (`draw` sorteggio, `seeded` teste di serie, `bracket` tabellone fisso, `fixed` coppie date).
+
+Le fasi si giocano in ordine; i partecipanti di una fase (`entrants`) sono riferimenti a classifiche come `apertura#1-8` o `link:qualified-from(ita.coppa-italia)`.
+
+**Come si scrive una posizione in classifica.** Dentro la stessa competizione: `fase#N` (es. `apertura#7` = la 7ª dell'Apertura) e `fase#N-M` per un intervallo (`apertura#1-8` = dalla 1ª all'8ª); per un girone `fase.girone#N` (`gironi.A#2-10`, `gironi.*#1` = la prima di ogni girone). Da un'altra competizione si aggiunge davanti il suo id: `ita.serie-a:table#1-4`. È la stessa grafia delle "porte" della parte C.
 
 **Apertura/Clausura** non è un tipo speciale: sono due fasi `round_robin` (ognuna con `resets: [points, stats]`), ciascuna seguita dalla sua `knockout` (liguilla), più una `aggregate_table` per la classifica annuale.
 
@@ -126,13 +136,13 @@ I **modi di decidere** un turno a eliminazione sono la regola del Mod "un'unica 
 
 ```yaml
 draw:
-  method: pots          # random | pots | seeded_bracket | fixed | geographic
+  method: pots          # casuale | fasce | tabellone con teste di serie | fisso | geografico
   pots: { by: coefficient, size: 9 }
   constraints:
-    - same_country_not_allowed: true        # country protection
+    - same_country_not_allowed: true        # protezione per nazione
     - max_per_country_per_group: 1
-    - separate: [[CLUB_A, CLUB_B]]          # political separations
-  rng_purpose: "uefa.ucl.league-phase.draw" # names the RNG substream, §6
+    - separate: [[CLUB_A, CLUB_B]]          # separazioni politiche
+  rng_purpose: "uefa.ucl.league-phase.draw" # nome del flusso casuale, §6
 ```
 
 I sorteggi con vincoli usano una ricerca deterministica con ritorno all'indietro (l'ordine dei candidati è il rimescolamento a seme; vince il primo abbinamento valido), quindi un sorteggio è riproducibile e termina sempre, oppure la validazione lo segnala come `unsatisfiable`.
@@ -148,7 +158,11 @@ outcomes:
   - { positions: 18-20, tag: relegated,   to: ita.serie-b, season: next }
 ```
 
-Le etichette guidano sia il passaggio di stagione sia l'interfaccia (i colori di zona e la legenda del Mod: `zone: CL | EL | CONF | PROM | P.OFF | P.OUT | RETR`). I posti possono essere **fissi** (`to: X`) o **calcolati** (`via: access-list`): un'access list è anch'essa un dato (posizione della federazione -> posti) e i coefficienti sono una specifica di calcolo a parte (`coefficients.yaml`: punti per vittoria/pareggio, bonus per turno, finestra di 5 stagioni). I posti non usati scalano secondo una regola dichiarata (`cascade: next_in_league | to_cup_runner_up | to_association_rank`).
+Le etichette guidano sia il passaggio di stagione sia l'interfaccia (i colori di zona e la legenda del Mod: `zone: CL | EL | CONF | PROM | P.OFF | P.OUT | RETR`). 
+
+**Posti fissi o calcolati.** Un posto può essere **fisso** (`to: X`: "la prima va in Champions") o **calcolato** (`via: access-list`): un'access list è anch'essa un dato (posizione della federazione -> posti) e i coefficienti sono una specifica di calcolo a parte (`coefficients.yaml`: punti per vittoria/pareggio, bonus per turno, finestra di 5 stagioni). 
+
+**Posti che restano liberi.** Se un club ha già un posto migliore, quello che lascia scala secondo una regola dichiarata (`cascade: next_in_league | to_cup_runner_up | to_association_rank`).
 
 La promozione tra gironi paralleli (Serie C/D) usa `assign: geographic` con una mappa club -> area nel pack.
 
@@ -157,14 +171,14 @@ La promozione tra gironi paralleli (Serie C/D) usa `assign: geographic` con una 
 ```yaml
 calendar:
   window: { start: 2026-08-22, end: 2027-05-30 }
-  matchdays: generated            # or: fixed (file: fixtures/ita-serie-a-2026-27.json)
+  matchdays: generated            # oppure: fixed (file: fixtures/ita-serie-a-2026-27.json)
   rest_rule: { min_days: 2 }
   pause: [ { from: 2026-12-28, to: 2027-01-03 } ]
 ```
 
 Le date reali sono di prima classe; il motore le proietta sulla griglia settimanale del gioco. I calendari `fixed` (quelli veri) servono per la prima stagione; quelle successive usano il generatore (metodo del cerchio, corretto anche con squadre dispari, al massimo N partite consecutive in casa o in trasferta: le regole di `oddtables.py` del Mod).
 
-Il sistema dei moduli (cartelle, manifesti, porte) e l'elenco completo delle primitive sono in "Moduli e catalogo delle regole"; i test in "Strategia di test".
+Il sistema dei moduli (cartelle, manifesti, porte) e l'elenco completo delle primitive sono in la parte C (Moduli e catalogo); i test in la parte D (Strategia di test).
 
 ## 5. API (C99)
 
@@ -261,12 +275,12 @@ sequenceDiagram
 
 ## 6. Determinismo
 
-- **Un solo algoritmo di generazione casuale, specificato bit per bit** (es. PCG32 o xoshiro128**, solo interi a 32 bit), mai `rand()`, mai l'orologio dentro il motore.
+- **Un solo algoritmo di generazione casuale, specificato bit per bit** (un algoritmo pubblico e fisso, per esempio PCG32, che usa solo numeri interi), mai `rand()`, mai l'orologio dentro il motore.
 - **Flussi separati per scopo**: ogni decisione casuale usa un flusso derivato da `hash(seme, stagione, rng_purpose)`. Aggiungere una competizione non cambia il sorteggio di un'altra, e così i golden file restano stabili e le differenze leggibili.
-- Il generatore delle partite del gioco (`Rand`/`Rand2`) non si tocca; i risultati simulati arrivano dal gioco. Per i test un **fornitore finto** ricava i risultati da `hash(id_partita, seme)` (con distribuzioni di gol realistiche), così un mondo intero gira in millisecondi senza interfaccia.
+- Il generatore delle partite del gioco (`Rand`/`Rand2`) non si tocca; i risultati simulati arrivano dal gioco. Per i test il **fornitore automatico** ricava i risultati da `hash(id_partita, seme)` (con distribuzioni di gol realistiche), così un mondo intero gira in millisecondi senza interfaccia.
 - L'ordine di iterazione è sempre quello dichiarato o per id, mai per puntatore o per tabella hash.
 
-**Harness con golden file**: `swc-sim --world W.json --seed 42 --seasons 3 --results stub > out.json`; l'integrazione continua confronta `out.json` (ogni classifica, tabellone, sorteggio, link) con `tests/golden/W-42.json`. Una modifica che cambia un golden file deve dire perché nel suo commit. Lo stesso harness dimostra le specifiche del 1996: si fanno girare il codice fedele e il motore con lo stesso seme e gli stessi risultati e si confronta.
+**Harness con golden file**: `swc-sim --world W.json --seed 42 --seasons 3 --results auto > out.json`; l'integrazione continua confronta `out.json` (ogni classifica, tabellone, sorteggio, link) con `tests/golden/W-42.json`. Una modifica che cambia un golden file deve dire perché nel suo commit. Lo stesso harness dimostra le specifiche del 1996: si fanno girare il codice fedele e il motore con lo stesso seme e gli stessi risultati e si confronta.
 
 ## 7. Salvataggi e versioni
 
@@ -308,7 +322,7 @@ stages:
   - id: apertura-liguilla
     type: knockout
     entrants: [apertura#1-6, apertura-playin.seed7, apertura-playin.seed8]
-    pairing: seeded          # 1v8, 2v7, 3v6, 4v5, reseeded each round
+    pairing: seeded          # 1-8, 2-7, 3-6, 4-5, riordinate a ogni turno
     rounds:
       - { name: quarter-finals, legs: 2, home: better_placed_second_leg, decider: [aggregate, better_placed] }
       - { name: semi-finals,    legs: 2, home: better_placed_second_leg, decider: [aggregate, better_placed] }
@@ -326,7 +340,7 @@ stages:
 outcomes:
   - { from: apertura-liguilla, positions: 1, tag: champion, title: "Apertura" }
   - { from: clausura-liguilla, positions: 1, tag: champion, title: "Clausura" }
-  - { from: annual, tag: none }                 # no relegation (suspended)
+  - { from: annual, tag: none }                 # niente retrocessioni (sospese)
 ```
 
 ### 9.2 Serie C: tre gironi paralleli, promozione, play-off, play-out
@@ -341,7 +355,7 @@ stages:
   - id: gironi
     type: groups
     groups: [ { id: A, size: 20 }, { id: B, size: 20 }, { id: C, size: 20 } ]
-    allocation: geographic            # club -> area map in the pack
+    allocation: geographic            # mappa club -> area nel pack
     legs: 2
     tiebreakers: [points, head_to_head_points, head_to_head_goal_difference, goal_difference, goals_for, draw_lots]
   - id: playout
@@ -357,7 +371,7 @@ stages:
   - id: playoff
     type: playoff
     entrants: [gironi.A#2-10, gironi.B#2-10, gironi.C#2-10, link:winner(ita.coppa-italia-serie-c)]
-    rounds:                           # simplified: the real 28-club bracket is in the pack
+    rounds:                           # semplificato: il tabellone vero a 28 squadre è nel pack
       - { name: group-phase-1, legs: 1, home: better_placed, decider: [better_placed], per_group: true }
       - { name: group-phase-2, legs: 1, home: better_placed, decider: [better_placed], per_group: true }
       - { name: national-1,    legs: 2, home: draw, decider: [aggregate, better_placed] }
@@ -382,7 +396,7 @@ stages:
   - id: league-phase
     type: league_phase
     pots: { count: 4, size: 9, by: coefficient, holder_in_pot: 1 }
-    opponents_per_pot: 2          # one home, one away
+    opponents_per_pot: 2          # una in casa, una fuori
     constraints: [ { same_country_not_allowed: true }, { max_opponents_same_country: 2 } ]
     tiebreakers: [points, goal_difference, goals_for, away_goals_for, wins, away_wins,
                   opponents_points, opponents_goal_difference, opponents_goals_for,
@@ -396,7 +410,7 @@ stages:
   - id: knockout
     type: knockout
     entrants: [league-phase#1-8, ko-playoff.winners]
-    pairing: bracket               # fixed bracket from league-phase positions
+    pairing: bracket               # tabellone fisso dalle posizioni della league phase
     rounds:
       - { name: round-of-16,    legs: 2, home: better_placed_second_leg, decider: [aggregate, extra_time, penalties] }
       - { name: quarter-finals, legs: 2, home: draw, decider: [aggregate, extra_time, penalties] }
@@ -423,7 +437,7 @@ stages:
     type: groups
     groups: [ { id: A, size: 15 }, { id: B, size: 15 } ]
     allocation: fixed
-    schedule: fixed                       # the real fixture list incl. interzonal matchdays
+    schedule: fixed                       # il calendario vero, giornate interzonali comprese
     matchdays: 16
   - id: apertura-final
     type: knockout
@@ -440,7 +454,7 @@ stages:
     type: average_table
     of: [arg.liga-profesional]
     seasons: 3
-    metric: points_per_match              # compared as cross-multiplied integers
+    metric: points_per_match              # confrontato con prodotti incrociati tra interi
     newcomer: current_only
     tiebreakers: [metric, annual_points, goal_difference, play_off_match]
   - id: trofeo-de-campeones
@@ -451,7 +465,7 @@ stages:
     skip_if: same_club
 outcomes:
   - { from: promedio, positions: 30, tag: relegated, to: arg.primera-nacional, zone: RETR }
-  - { from: annual, tag: continental, via: conmebol-access-list }   # positions come from the access list
+  - { from: annual, tag: continental, via: conmebol-access-list }   # le posizioni vengono dall'access list
 ```
 
 ## 10. Localizzazione
@@ -466,7 +480,7 @@ outcomes:
 |---|---|---|
 | 0 | Golden test di stagione per l'OpenSWOS *attuale* (carriera con seme fisso, 2 stagioni, dump JSON di classifiche, promozioni, posti europei) | gira nell'integrazione continua, stabile tra le build SDL |
 | 1 | Schema v1 + validatore + `swc-explain`; le competizioni del 1996 scritte come specifiche | validatore verde su tutte |
-| 2 | Cuore del motore: girone all'italiana, eliminazione diretta, criteri di parità, link; fornitore finto; golden file | piramide inglese 1996 + FA Cup riproducono esattamente la fase 0 |
+| 2 | Cuore del motore: girone all'italiana, eliminazione diretta, criteri di parità, link; fornitore automatico; golden file | piramide inglese 1996 + FA Cup riproducono esattamente la fase 0 |
 | 3 | Integrazione dietro un interruttore: la "carriera estesa" usa il motore; carriere classiche intatte | golden della fase 0 invariati |
 | 4 | Gironi, play-off/play-out, split, classifiche aggregate e promedio; sorteggi con vincoli | i quattro esempi del §9 simulano 3 stagioni, golden file nel repository |
 | 5 | Livello continentale: access list, coefficienti, preliminari, league phase | il modello UEFA del Mod (riferimento Python `uefaq`) e il motore coincidono su una stagione congelata |
@@ -476,10 +490,12 @@ Ogni fase è una serie di piccole pull request; l'ordine permette a OpenSWOS di 
 
 ## 12. Domande sulle licenze per Davide (senza conclusioni legali)
 
+Le licenze citate in breve: **GPL** obbliga chi distribuisce un programma derivato a distribuirne anche il codice sorgente con la stessa licenza; **MIT / BSD** sono licenze *permissive* (si può riusare il codice quasi senza vincoli, citando l'autore); **LGPL** è una via di mezzo pensata per le librerie; **CC BY-SA** (Wikipedia) chiede attribuzione e che i lavori derivati abbiano la stessa licenza.
+
 1. **Codice.** OpenSWOS è GPL-3.0-or-later. Un motore sviluppato dentro OpenSWOS, o derivato dal suo codice, sarebbe GPL. Vuoi il motore GPL, o una libreria scritta a parte con licenza permissiva (MIT/BSD/LGPL) usabile da altri strumenti? Una libreria scritta a parte non può copiare codice di OpenSWOS; la regola del Mod oggi è "mai copiare codice di OpenSWOS nel Mod".
-2. **Il codice del Mod** (strumenti Python, stub nasm, moduli C): con che licenza è oggi, e portarne la *logica* in OpenSWOS sarebbe una decisione di rilicenza che solo tu puoi prendere? I contributi di altre persone (rose di Angelo, il database 1984-85 di DaniSwos) richiedono il consenso degli autori per una licenza o un canale di distribuzione nuovi.
+2. **Il codice del Mod** (strumenti Python, stub nasm, moduli C): con che licenza è oggi, e portarne la *logica* in OpenSWOS sarebbe una decisione di rilicenza che solo tu puoi prendere? I contributi di altre persone (le rose 1996-97 inviate dal giocatore Angelo, il database 1984-85 dell'autore DaniSwos) richiedono il consenso degli autori per una licenza o un canale di distribuzione nuovi.
 3. **Dati.** Rose derivate da Transfermarkt (loro condizioni d'uso / diritti sulle banche dati), valutazioni derivate dai dati EA FC, maglie dagli infobox di Wikipedia (CC BY-SA: attribuzione e condivisione allo stesso modo si applicherebbero ai dati derivati). Ogni fonte può stare nel repository di un progetto GPL, o i pack vanno distribuiti a parte con la loro licenza e il file dei crediti?
 4. **SWOS stesso.** Entrambi i progetti richiedono la copia del gioco del giocatore; asset e nomi originali restano dei titolari dei diritti. Pack che contengono solo dati nuovi (nessun file originale) sarebbero accettabili per la politica del maintainer di OpenSWOS (il repository ha smesso di contenere i dati originali il 19/10/2026)?
 5. **Nomi e marchi.** Nomi di competizioni e club, maglie simili ai loghi: la pratica attuale del Mod (nomi come sui giornali, niente loghi) resta una regola dei pack?
 
-Un breve accordo scritto con Playaveli / Ben Baker sui punti 1 e 3 prima di scrivere codice eviterebbe lavoro rifatto.
+Un breve accordo scritto con Playaveli (lato OpenSWOS) / Ben Baker (autore e maintainer di OpenSWOS) sui punti 1 e 3 prima di scrivere codice eviterebbe lavoro rifatto.

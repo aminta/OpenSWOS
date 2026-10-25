@@ -2,7 +2,17 @@
 
 > Oggi il Mod verifica quasi tutto con test end-to-end: il gioco vero in DOSBox-X, una suite da circa 12 minuti più una carriera da 20 stagioni, perché la logica è dentro l'exe. Con un motore separato dal gioco la piramide si rovescia: quasi tutto si verifica in millisecondi con test sulle singole regole, test di proprietà e scenari "forzati" scritti in YAML leggibile, più pochi golden file di mondi interi. I test end-to-end restano pochissimi: una stagione di carriera per target e i controlli visivi. Ogni bug diventa un test al livello più basso possibile, mai un nuovo test end-to-end.
 
-Stato: piano, 25/10/2026. Accompagna la "Proposta del motore" §6 (determinismo e golden file) e il "Catalogo delle regole" (le primitive da testare).
+I termini di questa parte:
+
+- **end-to-end**: si fa girare il gioco intero, come lo usa un giocatore;
+- **harness**: il programma che guida il gioco da solo (preme i tasti, legge la memoria) e controlla i risultati;
+- **test unitario**: controlla una sola regola con ingressi e uscita fissati;
+- **test di proprietà**: genera molti casi casuali e verifica che certe condizioni valgano sempre (es. ogni coppia si incontra `legs` volte);
+- **scenario**: un piccolo file che impone una situazione precisa (con il fornitore scritto a mano) e dice cosa deve succedere;
+- **integrazione continua (CI)**: i test girano da soli a ogni modifica inviata al repository;
+- **poke** e interruttori **`*_FORCE`**: i trucchi del Mod per forzare un caso, scrivendo direttamente nella memoria del gioco o compilando un exe speciale.
+
+Stato: piano, 25/10/2026. Accompagna la parte B (Proposta del motore) §6 (determinismo e golden file) e la parte C (Moduli e catalogo) (le primitive da testare).
 
 ## 1. Perché la piramide cambia
 
@@ -114,13 +124,13 @@ Regole per gli scenari:
 
 ### L4 — Mondi golden
 
-Pochi mondi interi simulati senza interfaccia con il fornitore finto (proposta §6): il Mondo 2026-27 per tre stagioni, il mondo del 1996, un mondo storico. L'uscita (ogni classifica, tabellone, sorteggio, risoluzione dei link, albo d'oro) è un file JSON confrontato con il golden file nel repository. Una differenza va spiegata nel commit che la causa. I mondi golden scoprono le interazioni tra moduli che gli scenari non coprono (scalate dei posti continentali, passaggi tra coppe, movimenti nella piramide su più stagioni).
+Pochi mondi interi simulati senza interfaccia con il fornitore automatico (proposta §6): il Mondo 2026-27 per tre stagioni, il mondo del 1996, un mondo storico. L'uscita (ogni classifica, tabellone, sorteggio, risoluzione dei link, albo d'oro) è un file JSON confrontato con il golden file nel repository. Una differenza va spiegata nel commit che la causa. I mondi golden scoprono le interazioni tra moduli che gli scenari non coprono (scalate dei posti continentali, passaggi tra coppe, movimenti nella piramide su più stagioni).
 
 Un golden speciale dimostra l'**equivalenza col 1996**: il percorso fedele di OpenSWOS e il motore, con lo stesso seme e gli stessi risultati, devono produrre la stessa stagione (test differenziale, fase 2 del piano di migrazione).
 
 ### L5 — Integrazione col gioco
 
-Test dell'adattatore tra OpenSWOS e il motore, eseguiti dal gioco in una modalità senza interfaccia, sullo schema che il progetto usa già per `--custom-team-selftest` e `--dos-sound-selftest` (proposta: `--comp-selftest`):
+Test dell'adattatore tra OpenSWOS e il motore, eseguiti dal gioco in una modalità senza interfaccia, sullo schema delle modalità di autotest che il gioco ha già (`--custom-team-selftest`, `--dos-sound-selftest`) (proposta: `--comp-selftest`):
 
 - una stagione guidata dal vero codice di carriera con partite simulate, controllando che ogni evento del motore venga consumato e ogni risultato inviato;
 - salvataggio in mezzo a ogni tipo di fase, caricamento, prosecuzione: l'esito è uguale a quello di una stagione senza interruzioni;
@@ -129,7 +139,7 @@ Test dell'adattatore tra OpenSWOS e il motore, eseguiti dal gioco in una modalit
 
 ### L6 — End-to-end, pochi
 
-- Una stagione di carriera per target (SDL x86_64, Amiga con l'harness AmigaScope), con i menu guidati da input iniettato, l'impostazione `no_injuries_cards` dei tester così VIEW RESULT scorre la stagione senza domande, e la traccia dei menu (`make SWOS_DEBUG=1`) come diagnostica: dimostra che tutta la catena parte, salva e chiude una stagione.
+- Una stagione di carriera per target (PC con SDL, e Amiga con AmigaScope, l'harness di OpenSWOS per l'emulatore Amiga), con i menu guidati da input iniettato, l'impostazione dei tester senza infortuni né cartellini (`no_injuries_cards`), così il pulsante VIEW RESULT fa scorrere la stagione senza domande, e la traccia dei menu (`make SWOS_DEBUG=1`) come diagnostica: dimostra che tutta la catena parte, salva e chiude una stagione.
 - Controlli visivi delle schermate nuove (una classifica con le zone, un tabellone, una pagina FORMAT), guardati da una persona, come il giro visivo del Mod prima di ogni release candidate.
 - Nient'altro. Una regola che si può controllare solo end-to-end è il segno che la regola è finita nel codice del gioco.
 
