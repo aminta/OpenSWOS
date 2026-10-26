@@ -26,8 +26,8 @@ tools/cobj.py like conti.c/uefaq.c, natively for tests, into the OpenSWOS fork);
 compact versioned binary for the exe; thin asm bridge. Goal: users edit/add formats. Next doc touch must
 add: (1) freestanding C, no libc, 486, small memory; (2) binary compiled spec form; (3) engine state in a
 save trailer with versioning; (4) strict validation + clear errors for user-authored specs.
-(5) Davide 26/10: a world playable in CAREER is ALWAYS available in FRIENDLY, SEASON and PRESET
-COMPETITIONS too (clubs, national teams, leagues, cups, continental cups): a world registers teams and
+(5) Davide 26/10: EVERY world we add (not only career worlds) is ALWAYS available in ALL modes: CAREER,
+FRIENDLY, SEASON and PRESET COMPETITIONS (clubs, national teams, leagues, cups, continental cups): a world registers teams and
 competitions once, every mode lists them, no per-mode duplicate data.
 No work requested now; budget tight until Thu 29; no push without Davide's ok.
 
