@@ -19,6 +19,15 @@
 - Determinism: specified integer RNG, substreams hash(seed, season, purpose); stub result provider.
 - First deliverable suggested to OpenSWOS: season golden test of the current game (phase 0).
 
+## Decision relayed by Regia (Davide, 26/10/2026)
+After Mod 4.0.2 (~1 Nov) the Mod adopts this proposal as its own architecture: specs IDENTICAL to the
+convergence-docs schema; ONE portable C99 freestanding engine compiled three ways (into the 1996 exe via
+tools/cobj.py like conti.c/uefaq.c, natively for tests, into the OpenSWOS fork); spec compiler JSON ->
+compact versioned binary for the exe; thin asm bridge. Goal: users edit/add formats. Next doc touch must
+add: (1) freestanding C, no libc, 486, small memory; (2) binary compiled spec form; (3) engine state in a
+save trailer with versioning; (4) strict validation + clear errors for user-authored specs.
+No work requested now; budget tight until Thu 29; no push without Davide's ok.
+
 ## Open questions
 - Davide: licence of the engine (GPL vs separate permissive lib), Mod code licence, data sources
   (Transfermarkt, EA FC ratings, Wikipedia CC BY-SA kits), pack distribution.
